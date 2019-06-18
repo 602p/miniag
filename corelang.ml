@@ -17,8 +17,8 @@ and value =
     | UnitV
     | NonterminalV of production * value list * (attribute * value lz) list
     | TerminalV of terminaltype * string
-and production = Production of name * nonterminaltype * (name * typerep) list * (attribute * expr) list
-and attribute = Attribute of name * nonterminaltype * typerep
+and production = Production of name * nonterminaltype * (name * typerep) list * (attribute * expr) list ref
+and attribute = Attribute of name * typerep
 and expr =
     | Const of value
     | BinOp of expr * binoper * expr
@@ -72,7 +72,7 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
     | GetAttr (nt, attr) ->
         (* (match tyCkExpr env nt with NonterminalV (prod, children, thunks) ->
         enforce (List.mem attr )) *)
-        match attr with Attribute (_, _, ty) -> ty
+        match attr with Attribute (_, ty) -> ty
 
 let rec evalExpr (env : value env) (expr : expr) : value = match expr with
     | Const v -> v
@@ -111,7 +111,7 @@ let rec evalExpr (env : value env) (expr : expr) : value = match expr with
         enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
         List.iter2 (fun x y -> enforce (typeOfValue x = (snd y)) "bad actual type to a Construct") args childrentys;
         let childbindingsenv = List.fold_left (fun extant ((name, _), value) -> (name, value)::extant) [] (zip childrentys args) in
-        NonterminalV (prod, args, List.map (fun x -> (fst x, lazy (evalExpr childbindingsenv (snd x)))) attrs))
+        NonterminalV (prod, args, List.map (fun x -> (fst x, lazy (evalExpr childbindingsenv (snd x)))) !attrs))
     | GetAttr (nt, attr) ->
         match evalExpr env nt with
             | NonterminalV (prod, children, thunks) -> force (List.assoc attr thunks)

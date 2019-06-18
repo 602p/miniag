@@ -1,7 +1,7 @@
 %{
 (* Header - OCaml declarations *)
 
-open Lang
+open Lowlang
 
 %}
 
@@ -24,12 +24,21 @@ open Lang
 %token MINUS
 %token DIVIDE
 %token TIMES
+%token DECLARENONTERMINAL
+%token DECLAREATTRIBUTE
+%token DOUBLECOLON
+%token ATTACHATTRIBUTE
+%token ON
+%token EBNF
+%token DECLAREPRODUCTION
+%token IMPLEMENTATTRIBUTE
 %token <int> INT
 %token <string> ID
 
 %token EOF
 
-%type <Lang.expr> program
+%type <Lowlang.lowprog> program
+%type <(string * string) list> childlist
 
 %start program
 
@@ -37,7 +46,25 @@ open Lang
 
 /* Rules */
 program:
-  exp EOF { $1 }
+  stmts EOF { $1 }
+
+stmts:
+  stmt stmts
+    { $1 :: $2 }
+| stmt
+    { [$1] }
+
+stmt:
+  DECLARENONTERMINAL ID
+    { NonterminalDecl($2) }
+| DECLAREATTRIBUTE ID DOUBLECOLON ID
+    { AttributeDecl($4, $2) }
+| ATTACHATTRIBUTE ID ON ID
+    { AttributeAttach($2, $4) }
+| DECLAREPRODUCTION ID ID EBNF childlist
+    { ProductionDecl($2, $3, $5) }
+| IMPLEMENTATTRIBUTE ID ON ID ASSIGN exp SEMICOLON
+    { AttributeImpl($4, $2, $6) }
 
 exp:
   IF exp THEN exp ELSE exp
@@ -62,14 +89,43 @@ expT:
     { $1 }
 
 expF:
+  expF DOT ID
+    { GetAttr($1, $3) }
+| expZ
+    { $1 }
+
+expZ:
   INT
-    { Const (IntV $1) }
+    { ConstInt $1 }
+| ID
+    { Name $1 }
 | TRUE
-    { Const (BoolV true) }
+    { ConstBool true }
 | FALSE
-    { Const (BoolV false) }
+    { ConstBool false }
 | LPAREN expE RPAREN
     { $2 }
+| ID LPAREN commalist RPAREN
+    { Construct ($1, $3) }
+
+
+childlist:
+  child childlist
+  { $1::$2 }
+|
+  { [] }
+
+commalist:
+  exp COMMA commalist
+  { $1::$3 }
+| exp
+  { [$1] }
+|
+  { [] }
+
+child:
+  ID DOUBLECOLON ID
+    { ($1, $3) }
   
 %%
 (* Trailer - OCaml declarations *)

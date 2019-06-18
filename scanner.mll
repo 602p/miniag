@@ -23,6 +23,30 @@ rule scan = parse
   | "false"
     { FALSE }
 
+  | "declare nonterminal"
+    { DECLARENONTERMINAL }
+
+  | "declare attribute"
+    { DECLAREATTRIBUTE }
+
+  | "attach attribute"
+    { ATTACHATTRIBUTE }
+
+  | "declare production"
+    { DECLAREPRODUCTION }
+
+  | "implement attribute"
+    { IMPLEMENTATTRIBUTE }
+
+  | "::="
+    { EBNF }
+
+  | "on"
+    { ON }
+
+  | "::"
+    { DOUBLECOLON }
+
   | "="
     { ASSIGN }
 

@@ -1,5 +1,6 @@
-open Lang
+open Corelang
 open Print
+open Lowlang
 
 module Driver = struct
 
@@ -8,9 +9,14 @@ module Driver = struct
     let buffer = Lexing.from_channel in_channel in
 
     try
-      let result = Parser.program Scanner.scan buffer in
+      let lowprog = Parser.program Scanner.scan buffer in
       print_endline "Successful parse\n";
-      print_endline (reprOfValue (evalExpr [] result))
+      List.iter (fun x -> print_endline (reprOfLowStmt x)) lowprog;
+      let prods, attrs = raiseProg lowprog in
+      let mainprod = List.assoc "Main" prods in
+      let returncode = List.assoc "exitcode" attrs in
+      let res = evalExpr [] (GetAttr (Construct (mainprod, []), returncode)) in
+      print_endline (reprOfValue res)
     with 
     | Scanner.Lexical_error ->
        print_endline "A lexical error occurred.\n" 
