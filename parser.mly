@@ -32,6 +32,9 @@ open Lowlang
 %token EBNF
 %token DECLAREPRODUCTION
 %token IMPLEMENTATTRIBUTE
+%token NOT
+%token EQ
+%token <string> STRING
 %token <int> INT
 %token <string> ID
 
@@ -69,6 +72,8 @@ stmt:
 exp:
   IF exp THEN exp ELSE exp
     { IfThenElse ($2, $4, $6) }
+| exp EQ exp
+    { BinOp($1, Eq, $3) }
 | expE
     { $1 }
 
@@ -89,7 +94,13 @@ expT:
     { $1 }
 
 expF:
-  expF DOT ID
+  NOT expF
+    { UnOp($2, Not) }
+| expY
+    { $1 }
+
+expY:
+  expY DOT ID
     { GetAttr($1, $3) }
 | expZ
     { $1 }
@@ -107,6 +118,8 @@ expZ:
     { $2 }
 | ID LPAREN commalist RPAREN
     { Construct ($1, $3) }
+| STRING
+    { ConstStr $1 }
 
 
 childlist:

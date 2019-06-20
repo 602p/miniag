@@ -1,18 +1,26 @@
-declare nonterminal List
+declare nonterminal AssocList
 
-declare attribute sum :: int
+declare production NilAssocList
+AssocList ::=
+declare production ConsAssocList
+AssocList ::= name::string val::int tail::AssocList
 
-attach attribute sum on List
+declare attribute name :: string
+attach attribute name on AssocList
+implement attribute name on ConsAssocList = name;
+declare attribute val :: int
+attach attribute val on AssocList
+implement attribute val on ConsAssocList = val;
+declare attribute tail :: AssocList
+attach attribute tail on AssocList
+implement attribute tail on ConsAssocList = tail;
 
-declare production Nil
-List ::=
-
-implement attribute sum on Nil = 0;
-
-declare production Cons
-List ::= x::int xs::List
-
-implement attribute sum on Cons = x + xs.sum;
+declare nonterminal AssocListSearch
+declare production DoSearch
+AssocListSearch ::= sought::string list::AssocList
+declare attribute result :: int
+attach attribute result on AssocListSearch
+implement attribute result on DoSearch = if list.name==sought then list.val else DoSearch(sought, list.tail).result;
 
 
 declare nonterminal Main_nt
@@ -24,4 +32,5 @@ attach attribute exitcode on Main_nt
 declare production Main
 Main_nt ::= 
 
-implement attribute exitcode on Main = Cons(1, Cons(2, Cons(3, Nil()))).sum;
+implement attribute exitcode on Main =
+	DoSearch("foo", ConsAssocList("foo", 123, ConsAssocList("bar", 456, NilAssocList()))).result;

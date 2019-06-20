@@ -12,3 +12,6 @@ let enforce (cond : bool) (msg : string) : unit = if not cond then failwith ("en
 let warnifnot (cond : bool) (msg : string) : unit = if not cond then print_endline msg else ()
 type 'a lz = 'a Lazy.t
 let force = Lazy.force
+let assoc (x : string) (y : (string * 'a) list) : 'a = match List.assoc_opt x y with
+	| None -> failwith ("assoc failure: "^x)
+	| Some z -> z

@@ -28,10 +28,16 @@ and expr =
     | IfThenElse of expr * expr * expr
     | Construct of production * expr list
     | GetAttr of expr * attribute
-and binoper = Add | Sub | Mul | Div | Concat
+and binoper = Add | Sub | Mul | Div | Concat | Eq
 and unoper = Not | Neg
 and 'a env = (name * 'a) list
 and name = string
+
+let nameOfAttr = function Attribute (n, _) -> n
+
+let typeEq x y = match x, y with
+| NonterminalT (xname, _, _), NonterminalT (yname, _, _) -> xname = yname
+| x, y -> x = y
 
 let typeOfValue : value -> typerep = function
     | StringV _ -> StringT
@@ -43,13 +49,17 @@ let typeOfValue : value -> typerep = function
 
 let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
     | Const v -> typeOfValue v
-    | BinOp (l, op, r) -> let correctL, correctR, res = match op with
-            | Add | Sub | Mul | Div -> IntT, IntT, IntT
-            | Concat -> StringT, StringT, StringT
-        in
-            enforce (tyCkExpr env l = correctL) "invalid lhs type in binop";
-            enforce (tyCkExpr env r = correctR) "invalid rhs type in binop";
-            res
+    | BinOp (l, op, r) -> (match op with
+        |Eq -> enforce ((tyCkExpr env l) = (tyCkExpr env r)) "invalid args to eq"; BoolT
+        | _ ->
+            let correctL, correctR, res = match op with
+                | Add | Sub | Mul | Div -> IntT, IntT, IntT
+                | Concat -> StringT, StringT, StringT
+                | _ -> failwith "!?"
+            in
+                enforce (tyCkExpr env l = correctL) "invalid lhs type in binop";
+                enforce (tyCkExpr env r = correctR) "invalid rhs type in binop";
+                res)
     | UnOp (a, op) -> let correctA, res = match op with
             | Not -> BoolT, BoolT
             | Neg -> IntT, IntT
@@ -74,7 +84,9 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
         enforce (List.mem attr )) *)
         match attr with Attribute (_, ty) -> ty
 
-let rec evalExpr (env : value env) (expr : expr) : value = match expr with
+let rec evalExpr (env : value env) (expr : expr) : value =
+    print_endline "eval";
+    match expr with
     | Const v -> v
     | BinOp (l, op, r) ->
         let l', r' = evalExpr env l, evalExpr env r in
@@ -89,7 +101,13 @@ let rec evalExpr (env : value env) (expr : expr) : value = match expr with
         | Div -> do_iii (/)
         | Concat -> (match l', r' with
             | StringV l'', StringV r'' -> StringV (l'' ^ r'')
-            | _ -> failwith "bad actual type to string binop"))
+            | _ -> failwith "bad actual type to string binop")
+        | Eq -> (match l', r' with
+            | StringV l'', StringV r'' -> BoolV (l'' = r'')
+            | BoolV l'', BoolV r'' -> BoolV (l'' = r'')
+            | IntV l'', IntV r'' -> BoolV (l'' = r'')
+            | UnitV, UnitV -> BoolV true
+            | _ -> failwith "bad actual type to bool binop"))
     | UnOp (a, op) ->
         let a' = evalExpr env a in
         (match op with
@@ -109,10 +127,12 @@ let rec evalExpr (env : value env) (expr : expr) : value = match expr with
         (let args = List.map (evalExpr env) args in
         match prod with Production (name, res, childrentys, attrs) ->
         enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
-        List.iter2 (fun x y -> enforce (typeOfValue x = (snd y)) "bad actual type to a Construct") args childrentys;
+        List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y)) ("bad actual type to a Construct("^name^")")) args childrentys;
         let childbindingsenv = List.fold_left (fun extant ((name, _), value) -> (name, value)::extant) [] (zip childrentys args) in
         NonterminalV (prod, args, List.map (fun x -> (fst x, lazy (evalExpr childbindingsenv (snd x)))) !attrs))
     | GetAttr (nt, attr) ->
+        print_endline ("getattr:"^(nameOfAttr attr));
         match evalExpr env nt with
             | NonterminalV (prod, children, thunks) -> force (List.assoc attr thunks)
             | _ -> failwith "bad actual type to GetAttr"
+

@@ -8,6 +8,7 @@ let reprOfBinoper = function
 	| Mul -> "*"
 	| Div -> "/"
 	| Concat -> "^"
+	| Eq -> "=="
 
 let reprOfUnoper = function
 	| Not -> "!"

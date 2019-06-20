@@ -50,6 +50,9 @@ rule scan = parse
   | "="
     { ASSIGN }
 
+  | "=="
+    { EQ }
+
   | "{"
     { LBRACE }
 
@@ -83,6 +86,9 @@ rule scan = parse
   | ","
     { COMMA }
 
+  | "!"
+    { NOT }
+
   | eof 
       { EOF }
 
@@ -98,8 +104,40 @@ rule scan = parse
   | [' ' '\t' '\r'] +
     { scan lexbuf }
 
+  | '"'
+    { let str, _ = scan_string "" lexbuf in STRING (str) }
+
   | eof
     { EOF }
 
   | _ 
     { Printf.printf "illegal char"; scan lexbuf }
+
+and scan_string sofar = parse
+  | '"'
+    { sofar, lexbuf }
+
+  | "\\n"
+    { scan_string (sofar ^ "\n") lexbuf }
+
+  | "\\t"
+    { scan_string (sofar ^ "\t") lexbuf }
+
+  | "\\\""
+    { scan_string (sofar ^ "\"") lexbuf }
+
+  | "\\\\"
+    { scan_string (sofar ^ "\\") lexbuf }
+
+  | [^'\\' '"' '\n'] +
+    { scan_string (sofar ^ (lx_body lexbuf)) lexbuf }
+
+  | eof
+    { print_endline
+        "unterminated string";
+      failwith "unterminated string (fatal)" }
+
+  | _ 
+    { print_endline
+        "illegal character (string)";
+      scan_string sofar lexbuf }

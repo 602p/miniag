@@ -1,4 +1,5 @@
 open Corelang
+open Util
 
 type lowstmt =
     | NonterminalDecl of lownt
@@ -27,46 +28,53 @@ and lowexpr =
 and lowprog = lowstmt list
 
 let rec raiseProg prog =
+    print_endline " - Make ntMap...";
     let ntMap = List.fold_left
         (fun acc stmt -> match stmt with
             | NonterminalDecl name -> (name, (name, ref [], ref []))::acc
             | _ -> acc) [] prog in
+    print_endline " - Make typeMap...";
     let typeMap = [("int", IntT); ("bool", BoolT); ("unit", UnitT); ("string", StringT)] @
                     (List.map (fun (name, x) -> (name, NonterminalT x)) ntMap) in
+    print_endline " - Make attributeMap...";
     let attributeMap = List.fold_left
         (fun acc stmt -> match stmt with
-            | AttributeDecl (ty, name) -> (name, Attribute (name, List.assoc ty typeMap))::acc
+            | AttributeDecl (ty, name) -> (name, Attribute (name, assoc ty typeMap))::acc
             | _ -> acc) [] prog in
+    print_endline " - Make prodMap...";
     let prodMap = List.fold_left
         (fun acc stmt -> match stmt with
             | ProductionDecl (name, ntname, children) ->
-                (name, Production (name, List.assoc ntname ntMap, 
-                    List.map (fun (name, ty) -> (name, List.assoc ty typeMap)) children, ref []))::acc
+                (name, Production (name, assoc ntname ntMap, 
+                    List.map (fun (name, ty) -> (name, assoc ty typeMap)) children, ref []))::acc
             | _ -> acc) [] prog in
+    print_endline " - associate attributes...";
     List.iter
         (fun stmt -> match stmt with
             | AttributeAttach (attrname, ntname) ->
-                let attr = List.assoc attrname attributeMap in
-                let nt = List.assoc ntname ntMap in
+                let attr = assoc attrname attributeMap in
+                let nt = assoc ntname ntMap in
                 let (_, _, attrs) = nt in
                 attrs := attr::!attrs
             | _ -> ()) prog;
+    print_endline " - Raise exprs for attributes...";
     List.iter (fun stmt -> match stmt with
         | AttributeImpl (prodname, attrname, lowexpr) ->
-            (match List.assoc prodname prodMap with Production (name, ntname, children, attrs) ->
-            let attr = List.assoc attrname attributeMap in
+            (match assoc prodname prodMap with Production (name, ntname, children, attrs) ->
+            let attr = assoc attrname attributeMap in
             attrs := (attr, raiseExpr prodMap attributeMap lowexpr)::!attrs)
         | _ -> ()) prog;
     prodMap, attributeMap
 and raiseExpr prodmap attrmap e = 
-    let rec raiseExpr' = function
+    let rec raiseExpr' x =
+        match x with
         | ConstInt x -> Const (IntV x)
         | ConstBool x -> Const (BoolV x)
         | ConstStr x -> Const (StringV x)
         | BinOp (l, o, r) -> BinOp (raiseExpr' l, o, raiseExpr' r)
         | UnOp (a, o) -> UnOp (raiseExpr' a, o)
         | IfThenElse (i, t, e) -> IfThenElse (raiseExpr' i, raiseExpr' t, raiseExpr' e)
-        | Construct (prodname, args) -> Construct (List.assoc prodname prodmap, List.map raiseExpr' args)
-        | GetAttr (e, attrname) -> GetAttr (raiseExpr' e, List.assoc attrname attrmap)
+        | Construct (prodname, args) -> Construct (assoc prodname prodmap, List.map raiseExpr' args)
+        | GetAttr (e, attrname) -> GetAttr (raiseExpr' e, assoc attrname attrmap)
         | Name x -> Name x
     in raiseExpr' e

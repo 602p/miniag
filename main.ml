@@ -12,10 +12,13 @@ module Driver = struct
       let lowprog = Parser.program Scanner.scan buffer in
       print_endline "Successful parse\n";
       List.iter (fun x -> print_endline (reprOfLowStmt x)) lowprog;
+      print_endline "Raising...\n";
       let prods, attrs = raiseProg lowprog in
       let mainprod = List.assoc "Main" prods in
       let returncode = List.assoc "exitcode" attrs in
+      print_endline "Invoking main...\n";
       let res = evalExpr [] (GetAttr (Construct (mainprod, []), returncode)) in
+      print_endline "\n\n";
       print_endline (reprOfValue res)
     with 
     | Scanner.Lexical_error ->
