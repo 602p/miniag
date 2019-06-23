@@ -39,5 +39,5 @@ let reprOfLowStmt = function
 	| NonterminalDecl name -> "NonterminalDecl("^name^")"
 	| AttributeDecl (ty, at) -> "AttributeDecl("^ty^", "^at^")"
 	| AttributeAttach (at, nt) -> "AttributeAttach("^at^", "^nt^")"
-	| ProductionDecl (prname, nt, children) -> "ProductionDecl("^prname^", "^nt^", ["^(stringJoin ", " (List.map (fun (x, y) -> "("^x^", "^y^")") children))^"])"
+	| ProductionDecl (prname, (boundname, nt), children) -> "ProductionDecl("^prname^", ("^boundname^", "^nt^"), ["^(stringJoin ", " (List.map (fun (x, y) -> "("^x^", "^y^")") children))^"])"
 	| AttributeImpl (pr, at, e) -> "AttributeImpl("^pr^", "^at^", "^(reprOfLowExpr e)^")"

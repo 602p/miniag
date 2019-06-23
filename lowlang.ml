@@ -8,8 +8,8 @@ type lowstmt =
                     (* type      name *)
     | AttributeAttach of lowattr * lownt
                     (*   attr     nonterminal *)
-    | ProductionDecl of lowprod * lownt * (name * lowtype) list
-                    (*  name      nt     children and types *)
+    | ProductionDecl of lowprod * (name * lownt) * (name * lowtype) list
+                    (*  name      boundname nt      children and types *)
     | AttributeImpl of lowprod * lowattr * lowexpr
 and lowtype = name
 and lownt = name
@@ -44,8 +44,8 @@ let rec raiseProg prog =
     print_endline " - Make prodMap...";
     let prodMap = List.fold_left
         (fun acc stmt -> match stmt with
-            | ProductionDecl (name, ntname, children) ->
-                (name, Production (name, assoc ntname ntMap, 
+            | ProductionDecl (name, (boundname, ntname), children) ->
+                (name, Production (name, assoc ntname ntMap, "",
                     List.map (fun (name, ty) -> (name, assoc ty typeMap)) children, ref []))::acc
             | _ -> acc) [] prog in
     print_endline " - associate attributes...";
@@ -60,7 +60,7 @@ let rec raiseProg prog =
     print_endline " - Raise exprs for attributes...";
     List.iter (fun stmt -> match stmt with
         | AttributeImpl (prodname, attrname, lowexpr) ->
-            (match assoc prodname prodMap with Production (name, ntname, children, attrs) ->
+            (match assoc prodname prodMap with Production (name, ntname, _, children, attrs) ->
             let attr = assoc attrname attributeMap in
             attrs := (attr, raiseExpr prodMap attributeMap lowexpr)::!attrs)
         | _ -> ()) prog;

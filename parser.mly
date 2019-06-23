@@ -64,15 +64,19 @@ stmt:
     { AttributeDecl($4, $2) }
 | ATTACHATTRIBUTE ID ON ID
     { AttributeAttach($2, $4) }
-| DECLAREPRODUCTION ID ID EBNF childlist
+| DECLAREPRODUCTION ID child EBNF childlist
     { ProductionDecl($2, $3, $5) }
 | IMPLEMENTATTRIBUTE ID ON ID ASSIGN exp SEMICOLON
     { AttributeImpl($4, $2, $6) }
 
 exp:
-  IF exp THEN exp ELSE exp
+  IF expA THEN exp ELSE exp
     { IfThenElse ($2, $4, $6) }
-| exp EQ exp
+| expA
+    { $1 }
+
+expA:
+  expA EQ expE
     { BinOp($1, Eq, $3) }
 | expE
     { $1 }

@@ -10,7 +10,7 @@ let rec zip l1 l2 = match (l1, l2) with
 	| _ -> failwith "zip of non-equal-length lists"
 let enforce (cond : bool) (msg : string) : unit = if not cond then failwith ("enforcefail: "^msg) else ()
 let warnifnot (cond : bool) (msg : string) : unit = if not cond then print_endline msg else ()
-type 'a lz = 'a Lazy.t
+type 'a lz = 'a Lazy.t [@@ deriving show]
 let force = Lazy.force
 let assoc (x : string) (y : (string * 'a) list) : 'a = match List.assoc_opt x y with
 	| None -> failwith ("assoc failure: "^x)

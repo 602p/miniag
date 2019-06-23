@@ -8,8 +8,11 @@ type typerep =
     | NonterminalT of nonterminaltype
     | TerminalT of terminaltype
     | TyVarT of string
+[@@ deriving show]
 and nonterminaltype = name * production list ref * attribute list ref
+[@@ deriving show]
 and terminaltype = name
+[@@ deriving show]
 and value =
     | StringV of string
     | IntV of int
@@ -17,8 +20,15 @@ and value =
     | UnitV
     | NonterminalV of production * value list * (attribute * value lz) list
     | TerminalV of terminaltype * string
-and production = Production of name * nonterminaltype * (name * typerep) list * (attribute * expr) list ref
+[@@ deriving show]
+and production = Production of name
+    * nonterminaltype (* type of produced nonterminal (i.e. what this prod belongs to) *)
+    * name (* name bound to the production *)
+    * (name * typerep) list (* name and type of children *)
+    * (attribute * expr) list ref (* attribute implementations, expect the top and children names bound *)
+[@@ deriving show]
 and attribute = Attribute of name * typerep
+[@@ deriving show]
 and expr =
     | Const of value
     | BinOp of expr * binoper * expr
@@ -28,10 +38,15 @@ and expr =
     | IfThenElse of expr * expr * expr
     | Construct of production * expr list
     | GetAttr of expr * attribute
+[@@ deriving show]
 and binoper = Add | Sub | Mul | Div | Concat | Eq
+[@@ deriving show]
 and unoper = Not | Neg
+[@@ deriving show]
 and 'a env = (name * 'a) list
+[@@ deriving show]
 and name = string
+[@@ deriving show]
 
 let nameOfAttr = function Attribute (n, _) -> n
 
@@ -44,7 +59,7 @@ let typeOfValue : value -> typerep = function
     | IntV _ -> IntT
     | BoolV _ -> BoolT
     | UnitV -> UnitT
-    | NonterminalV (Production(_, ty, _, _), _, _) -> NonterminalT ty
+    | NonterminalV (Production(_, ty, _, _, _), _, _) -> NonterminalT ty
     | TerminalV (ty, _) -> TerminalT ty
 
 let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
@@ -75,7 +90,7 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
         tty
     | Construct (prod, args) ->
         (let argtys = List.map (tyCkExpr env) args in
-        match prod with Production (name, res, reqtys, attrs) ->
+        match prod with Production (name, res, _, reqtys, attrs) ->
         enforce (List.length argtys = List.length reqtys) "bad nr args to a Construct";
         List.iter2 (fun x y -> enforce (x = (snd y)) "bad type to a Construct") argtys reqtys;
         NonterminalT res)
@@ -85,7 +100,9 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
         match attr with Attribute (_, ty) -> ty
 
 let rec evalExpr (env : value env) (expr : expr) : value =
-    print_endline "eval";
+    print_endline ("eval: "^(show_expr expr));
+    print_endline ("env: "^([%show: value env] env));
+    print_endline "";
     match expr with
     | Const v -> v
     | BinOp (l, op, r) ->
@@ -125,7 +142,7 @@ let rec evalExpr (env : value env) (expr : expr) : value =
         | _ -> failwith "bad actual type to ifthenelse")
     | Construct (prod, args) ->
         (let args = List.map (evalExpr env) args in
-        match prod with Production (name, res, childrentys, attrs) ->
+        match prod with Production (name, res, _, childrentys, attrs) ->
         enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
         List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y)) ("bad actual type to a Construct("^name^")")) args childrentys;
         let childbindingsenv = List.fold_left (fun extant ((name, _), value) -> (name, value)::extant) [] (zip childrentys args) in
