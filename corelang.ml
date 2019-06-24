@@ -5,7 +5,8 @@ type typerep =
     | IntT
     | BoolT
     | UnitT
-    | NonterminalT of nonterminaltype
+    | BareNonterminalT of nonterminaltype
+    | DecoratedNonterminalT of nonterminaltype
     | TerminalT of terminaltype
     | TyVarT of string
 [@@ deriving show { with_path = false }]
@@ -21,8 +22,8 @@ and value =
     | IntV of int
     | BoolV of bool
     | UnitV
-    | NonterminalV of production * value list * value option ref list
-                     (* prod      children      attr values (prod ordered) *)
+    | BareNonterminalV of production * value list
+    | DecoratedNonterminalV of production * value list * value option ref list
     | TerminalV of terminaltype * string
 [@@ deriving show { with_path = false }]
 and production = Production of name
@@ -70,17 +71,20 @@ and language = Language of
 let nameOfAttr = function Attribute (n, _, _) -> n
 
 let getChildByName v n = match v with
-    | NonterminalV (Production (_, _, _, childmap), children, _) ->
+    | BareNonterminalV (Production (_, _, _, childmap), children) ->
         List.nth children (findNthP childmap (fun x -> (fst x) = n))
-    | _ -> failwith "getChildByName not of NonterminalV"
+    | DecoratedNonterminalV (Production (_, _, _, childmap), children, _) ->
+        List.nth children (findNthP childmap (fun x -> (fst x) = n))
+    | _ -> failwith "getChildByName not of *NonterminalV"
 
 let getAttrSlotByName v n = match v with
-    | NonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs) ->
+    | DecoratedNonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs) ->
         List.nth attrs (findNth !attrmap n)
-    | _ -> failwith "getAttrSlotByName not of NonterminalV"
+    | _ -> failwith "getAttrSlotByName not of DecoratedNonterminalV"
 
 let typeEq x y = match x, y with
-    | NonterminalT (xname, _, _), NonterminalT (yname, _, _) -> xname = yname
+    | BareNonterminalT (xname, _, _), BareNonterminalT (yname, _, _) -> xname = yname
+    | DecoratedNonterminalT (xname, _, _), DecoratedNonterminalT (yname, _, _) -> xname = yname
     | x, y -> x = y
 
 let typeOfValue : value -> typerep = function
@@ -88,7 +92,8 @@ let typeOfValue : value -> typerep = function
     | IntV _ -> IntT
     | BoolV _ -> BoolT
     | UnitV -> UnitT
-    | NonterminalV (Production(_, ty, _, _), _, _) -> NonterminalT ty
+    | BareNonterminalV (Production(_, ty, _, _), _, _) -> BareNonterminalT ty
+    | DecoratedNonterminalV (Production(_, ty, _, _), _, _) -> DecoratedNonterminalT ty
     | TerminalV (ty, _) -> TerminalT ty
 
 let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
