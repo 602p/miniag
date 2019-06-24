@@ -1,3 +1,5 @@
+(ocamllex scanner)
+(ocamlyacc parser)
 (executable
  (name main)
  (preprocess

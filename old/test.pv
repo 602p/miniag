@@ -1,0 +1,27 @@
+declare nonterminal List
+
+declare attribute sum :: int
+
+attach attribute sum on List
+
+declare production Nil
+top::List ::=
+
+implement attribute sum on Nil = 0;
+
+declare production Cons
+top::List ::= x::int xs::List
+
+implement attribute sum on Cons = x + xs.sum;
+
+
+declare nonterminal Main_nt
+
+declare attribute exitcode :: int
+
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= 
+
+implement attribute exitcode on Main = Cons(1, Cons(2, Cons(3, Nil())));

@@ -1,0 +1,7 @@
+production Add
+top:Expr ::= l:Expr r:Expr
+{
+	local l' = decorate l {env=top.env};
+	local r' = decorate r {env=top.env};
+	top.val = l'.val + r'.val;
+}

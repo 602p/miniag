@@ -1,33 +1,41 @@
 open Corelang
-open Print
-open Lowlang
 
-let parse_file filename =
-  let in_channel = open_in filename in
-  let buffer = Lexing.from_channel in_channel in
+let someNTType : nonterminaltype = ("someNTType", ref [], ref [])
 
-  try
-    let lowprog = Parser.program Scanner.scan buffer in
-    print_endline "Successful parse\n";
-    List.iter (fun x -> print_endline ([%show: lowstmt] x)) lowprog;
-    print_endline "Raising...\n";
-    let prods, attrs = raiseProg lowprog in
-    let mainprod = List.assoc "Main" prods in
-    let returncode = List.assoc "exitcode" attrs in
-    print_endline "Invoking main...\n";
-    let res = evalExpr [] (GetAttr (Construct (mainprod, []), returncode)) in
-    print_endline "\n\n";
-    print_endline ([%show: value] res)
-  with 
-  | Scanner.Lexical_error ->
-     print_endline "A lexical error occurred.\n" 
-  | Parsing.Parse_error ->
-     print_endline "A syntax error occurred.\n" 
+let setterProd : production = Production ("setter", someNTType, "top",
+  [("x", StringT); ("e",NonterminalT someNTType)])
+let addXProd : production = Production ("addX", someNTType, "top", [])
 
-let () =
-  if Array.length Sys.argv <> 2
-  then (
-    print_endline "Incorrect usage\n"
-  )
-  else
-    parse_file Sys.argv.(1)
+let downVal : attribute = Attribute ("downVal", StringT, Inh)
+let upVal : attribute = Attribute ("upVal", StringT, Syn)
+
+let addXupValRule : attrrule = (upVal, addXProd, SynImpl (
+  BinOp (GetAttr (Name "top", upVal), Concat, Const (StringV "X"))))
+let setterdownValRule : attrrule = (downVal, setterProd, InhImpl (1, Name "x"))
+let setterupValRule : attrrule = (upVal, setterProd, SynImpl (GetAttr (Name "e", upVal)))
+
+let () = let (_, prods, attrs) = someNTType in
+  prods := [setterProd; addXProd];
+  attrs := [downVal; upVal]
+
+let lang : language = Language (
+  [someNTType],
+  [],
+  [downVal; upVal],
+  [setterProd; addXProd],
+  [addXupValRule; setterdownValRule; setterupValRule]
+)
+
+(* let () = print_endline ([%show: language] lang) *)
+
+let somev = NonterminalV (setterProd, 
+  [StringV "Foo"; NonterminalV (addXProd, [], [ref None; ref None])],
+  [ref None; ref None])
+
+let () = print_endline ([%show: value] somev)
+
+let () = print_endline "\n\n"
+
+let res = evalExpr [] (GetAttr (Const somev, upVal))
+
+let () = print_endline ([%show: value] res)

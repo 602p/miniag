@@ -8,32 +8,27 @@ type typerep =
     | NonterminalT of nonterminaltype
     | TerminalT of terminaltype
     | TyVarT of string
-[@@ deriving show { with_path = false }]
-and nonterminaltype = ((name *
-    production list ref *
-    attribute list ref)
-[@printer fun fmt (x, _, _) -> fprintf fmt "<%s>" x])
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
+and nonterminaltype = name * production list ref * attribute list ref
+[@@ deriving show]
 and terminaltype = name
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and value =
     | StringV of string
     | IntV of int
     | BoolV of bool
     | UnitV
-    | NonterminalV of production * value list * value option ref list
-                     (* prod      children      attr values (prod ordered) *)
+    | NonterminalV of production * value list * (attribute * value lz) list
     | TerminalV of terminaltype * string
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and production = Production of name
     * nonterminaltype (* type of produced nonterminal (i.e. what this prod belongs to) *)
     * name (* name bound to the production *)
     * (name * typerep) list (* name and type of children *)
-[@@ deriving show { with_path = false }]
-and attrflowtype = Inh | Syn
-[@@ deriving show { with_path = false }]
-and attribute = Attribute of name * typerep * attrflowtype
-[@@ deriving show { with_path = false }]
+    * (attribute * expr) list ref (* attribute implementations, expect the top and children names bound *)
+[@@ deriving show]
+and attribute = Attribute of name * typerep
+[@@ deriving show]
 and expr =
     | Const of value
     | BinOp of expr * binoper * expr
@@ -43,52 +38,28 @@ and expr =
     | IfThenElse of expr * expr * expr
     | Construct of production * expr list
     | GetAttr of expr * attribute
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and binoper = Add | Sub | Mul | Div | Concat | Eq
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and unoper = Not | Neg
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and 'a env = (name * 'a) list
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 and name = string
-[@@ deriving show { with_path = false }]
-and attrrule = attribute * production * attrimpl
-[@@ deriving show { with_path = false }]
-and attrimpl =
-    | InhImpl of int * (* child number *)
-                expr (* expr in scope of 'parent' *)
-    | SynImpl of expr (* expr in scope of node *)
-[@@ deriving show { with_path = false }]
-and language = Language of
-    nonterminaltype list *
-    terminaltype list *
-    attribute list *
-    production list *
-    attrrule list
-[@@ deriving show { with_path = false }]
+[@@ deriving show]
 
-let nameOfAttr = function Attribute (n, _, _) -> n
-
-let getChildByName v n = match v with
-    | NonterminalV (Production (_, _, _, childmap), children, _) ->
-        List.nth children (findNthP childmap (fun x -> (fst x) = n))
-    | _ -> failwith "getChildByName not of NonterminalV"
-
-let getAttrSlotByName v n = match v with
-    | NonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs) ->
-        List.nth attrs (findNth !attrmap n)
-    | _ -> failwith "getAttrSlotByName not of NonterminalV"
+let nameOfAttr = function Attribute (n, _) -> n
 
 let typeEq x y = match x, y with
-    | NonterminalT (xname, _, _), NonterminalT (yname, _, _) -> xname = yname
-    | x, y -> x = y
+| NonterminalT (xname, _, _), NonterminalT (yname, _, _) -> xname = yname
+| x, y -> x = y
 
 let typeOfValue : value -> typerep = function
     | StringV _ -> StringT
     | IntV _ -> IntT
     | BoolV _ -> BoolT
     | UnitV -> UnitT
-    | NonterminalV (Production(_, ty, _, _), _, _) -> NonterminalT ty
+    | NonterminalV (Production(_, ty, _, _, _), _, _) -> NonterminalT ty
     | TerminalV (ty, _) -> TerminalT ty
 
 let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
@@ -119,14 +90,14 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
         tty
     | Construct (prod, args) ->
         (let argtys = List.map (tyCkExpr env) args in
-        match prod with Production (name, res, _, reqtys) ->
+        match prod with Production (name, res, _, reqtys, attrs) ->
         enforce (List.length argtys = List.length reqtys) "bad nr args to a Construct";
         List.iter2 (fun x y -> enforce (x = (snd y)) "bad type to a Construct") argtys reqtys;
         NonterminalT res)
     | GetAttr (nt, attr) ->
         (* (match tyCkExpr env nt with NonterminalV (prod, children, thunks) ->
         enforce (List.mem attr )) *)
-        match attr with Attribute (_, ty, _) -> ty
+        match attr with Attribute (_, ty) -> ty
 
 let rec evalExpr (env : value env) (expr : expr) : value =
     match expr with
@@ -168,15 +139,13 @@ let rec evalExpr (env : value env) (expr : expr) : value =
         | _ -> failwith "bad actual type to ifthenelse")
     | Construct (prod, args) ->
         (let args = List.map (evalExpr env) args in
-        match prod with Production (name, (_, _, attrs), _, childrentys) ->
+        match prod with Production (name, res, _, childrentys, attrs) ->
         enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
         List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y)) ("bad actual type to a Construct("^name^")")) args childrentys;
-       NonterminalV (prod, args, List.map (fun _ -> ref None) !attrs))
+        let childbindingsenv = List.fold_left (fun extant ((name, _), value) -> (name, value)::extant) [] (zip childrentys args) in
+        NonterminalV (prod, args, List.map (fun x -> (fst x, lazy (evalExpr childbindingsenv (snd x)))) !attrs))
     | GetAttr (nt, attr) ->
         match evalExpr env nt with
-            | NonterminalV (Production (_, (_, _, attrs), _, _), children, thunks) as v ->
-                (match !(getAttrSlotByName v attr) with
-                    | Some x -> x
-                    | None -> failwith "asidasdi")
+            | NonterminalV (prod, children, thunks) -> force (List.assoc attr thunks)
             | _ -> failwith "bad actual type to GetAttr"
 
