@@ -11,6 +11,7 @@ type lowstmt =
     | ProductionDecl of lowprod * (name * lownt) * (name * lowtype) list
                     (*  name      boundname nt      children and types *)
     | AttributeImpl of lowprod * lowattr * lowexpr
+[@@ deriving show]
 and lowtype = name
 and lownt = name
 and lowattr = name
@@ -25,6 +26,7 @@ and lowexpr =
     | Construct of lowprod * lowexpr list
     | GetAttr of lowexpr * lowattr
     | Name of name
+[@@ deriving show]
 and lowprog = lowstmt list
 
 let rec raiseProg prog =

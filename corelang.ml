@@ -100,9 +100,6 @@ let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
         match attr with Attribute (_, ty) -> ty
 
 let rec evalExpr (env : value env) (expr : expr) : value =
-    print_endline ("eval: "^(show_expr expr));
-    print_endline ("env: "^([%show: value env] env));
-    print_endline "";
     match expr with
     | Const v -> v
     | BinOp (l, op, r) ->
@@ -148,7 +145,6 @@ let rec evalExpr (env : value env) (expr : expr) : value =
         let childbindingsenv = List.fold_left (fun extant ((name, _), value) -> (name, value)::extant) [] (zip childrentys args) in
         NonterminalV (prod, args, List.map (fun x -> (fst x, lazy (evalExpr childbindingsenv (snd x)))) !attrs))
     | GetAttr (nt, attr) ->
-        print_endline ("getattr:"^(nameOfAttr attr));
         match evalExpr env nt with
             | NonterminalV (prod, children, thunks) -> force (List.assoc attr thunks)
             | _ -> failwith "bad actual type to GetAttr"

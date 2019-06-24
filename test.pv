@@ -24,4 +24,4 @@ attach attribute exitcode on Main_nt
 declare production Main
 top::Main_nt ::= 
 
-implement attribute exitcode on Main = Cons(1, Cons(2, Cons(3, Nil()))).sum;
+implement attribute exitcode on Main = Cons(1, Cons(2, Cons(3, Nil())));

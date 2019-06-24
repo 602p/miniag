@@ -9,7 +9,7 @@ let parse_file filename =
   try
     let lowprog = Parser.program Scanner.scan buffer in
     print_endline "Successful parse\n";
-    List.iter (fun x -> print_endline (reprOfLowStmt x)) lowprog;
+    List.iter (fun x -> print_endline ([%show: lowstmt] x)) lowprog;
     print_endline "Raising...\n";
     let prods, attrs = raiseProg lowprog in
     let mainprod = List.assoc "Main" prods in
@@ -17,7 +17,7 @@ let parse_file filename =
     print_endline "Invoking main...\n";
     let res = evalExpr [] (GetAttr (Construct (mainprod, []), returncode)) in
     print_endline "\n\n";
-    print_endline (reprOfValue res)
+    print_endline ([%show: value] res)
   with 
   | Scanner.Lexical_error ->
      print_endline "A lexical error occurred.\n" 
