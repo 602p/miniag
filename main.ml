@@ -33,7 +33,7 @@ let lang : language = Language (
   [addXupValRule; setterupValRule; splitterupValRule]
 )
 
-let tyCk, eval = getEval lang
+let eval = getEval lang
 
 (* let () = print_endline ([%show: language] lang) *)
 

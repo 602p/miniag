@@ -112,50 +112,6 @@ let typeOfValue : value -> typerep = function
 
 let getEval lang =
     match lang with Language (nonterminaltypes, terminaltypes, attributes, productions, rules) ->
-    let rec tyCkExpr (env : typerep env) (expr : expr) : typerep = match expr with
-        | Const v -> typeOfValue v
-        | BinOp (l, op, r) -> (match op with
-            |Eq -> enforce ((tyCkExpr env l) = (tyCkExpr env r)) "invalid args to eq"; BoolT
-            | _ ->
-                let correctL, correctR, res = match op with
-                    | Add | Sub | Mul | Div -> IntT, IntT, IntT
-                    | Concat -> StringT, StringT, StringT
-                    | _ -> failwith "!?"
-                in
-                    enforce (tyCkExpr env l = correctL) "invalid lhs type in binop";
-                    enforce (tyCkExpr env r = correctR) "invalid rhs type in binop";
-                    res)
-        | UnOp (a, op) -> let correctA, res = match op with
-                | Not -> BoolT, BoolT
-                | Neg -> IntT, IntT
-            in
-                enforce (tyCkExpr env a = correctA) "invalid expr type in unop";
-                res
-        | Let (bound, binding, body) -> tyCkExpr ((binding, tyCkExpr env bound)::env) body
-        | Name x -> List.assoc x env
-        | IfThenElse (cond, t, f) ->
-            enforce (tyCkExpr env cond = BoolT) "invalid cond type in ifthenelse";
-            let tty = tyCkExpr env t in
-            enforce (tty = tyCkExpr env f) "arms not same type in ifthenelse";
-            tty
-        | Construct (prod, args) ->
-            (let argtys = List.map (tyCkExpr env) args in
-            match prod with Production (name, res, _, reqtys) ->
-            enforce (List.length argtys = List.length reqtys) "bad nr args to a Construct";
-            List.iter2 (fun x y -> enforce (x = (snd y)) "bad type to a Construct") argtys reqtys;
-            BareNonterminalT res)
-        | GetAttr (nt, attr) ->
-            (* (match tyCkExpr env nt with NonterminalV (prod, children, thunks) ->
-            enforce (List.mem attr )) *)
-            (match tyCkExpr env nt with 
-                | DecoratedNonterminalT _ -> (match attr with Attribute (_, ty, _) -> ty)
-                | _ -> failwith "GetAttr on undec")
-        | Decorate (x, bs) ->
-            (* TODO: enforce bs *)
-            match tyCkExpr env x with
-                | BareNonterminalT x -> DecoratedNonterminalT x
-                | _ -> failwith "decorate of not Bare"
-
     and evalExpr (env : value env) (expr : expr) : value =
         print_endline ("eval: "^([%show: expr] expr)^"\n <<");
         let r = (match expr with
@@ -256,4 +212,4 @@ let getEval lang =
                 v
         | _ -> failwith "???"
 
-    in (tyCkExpr, evalExpr)
+    in evalExpr
