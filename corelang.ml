@@ -112,7 +112,7 @@ let typeOfValue : value -> typerep = function
 
 let getEval lang =
     match lang with Language (nonterminaltypes, terminaltypes, attributes, productions, rules) ->
-    and evalExpr (env : value env) (expr : expr) : value =
+    let rec evalExpr (env : value env) (expr : expr) : value =
         print_endline ("eval: "^([%show: expr] expr)^"\n <<");
         let r = (match expr with
         | Const v -> v
