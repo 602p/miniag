@@ -13,7 +13,7 @@ type typerep =
 and nonterminaltype = ((name *
     production list ref *
     attribute list ref)
-[@printer fun fmt (x, _, _) -> fprintf fmt "<%s>" x])
+[@printer fun fmt (x, _, _) -> fprintf fmt "<NTT:%s>" x])
 [@@ deriving show { with_path = false }]
 and terminaltype = name
 [@@ deriving show { with_path = false }]
@@ -157,7 +157,7 @@ let getEval lang =
                 | _ -> failwith "decorate of not Bare"
 
     and evalExpr (env : value env) (expr : expr) : value =
-        print_endline ("eval: "^([%show: expr] expr)^"\n{");
+        print_endline ("eval: "^([%show: expr] expr)^"\n <<");
         let r = (match expr with
         | Const v -> v
         | BinOp (l, op, r) ->
@@ -195,11 +195,13 @@ let getEval lang =
             | BoolV true -> evalExpr env t
             | BoolV false -> evalExpr env f
             | _ -> failwith "bad actual type to ifthenelse")
+        (* ------------------------------------------------------------------- *)
         | Construct (prod, args) ->
             (let args = List.map (evalExpr env) args in
             match prod with Production (name, (_, _, attrs), _, childrentys) ->
             enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
-            List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y)) ("bad actual type to a Construct("^name^")")) args childrentys;
+            List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y))
+                ("bad actual type to a Construct("^name^")")) args childrentys;
            BareNonterminalV (prod, args))
         | GetAttr (nt, attr) ->
             (match evalExpr env nt with
@@ -209,7 +211,9 @@ let getEval lang =
         | Decorate (e, b) ->
             let bindings = (List.map (fun (a, e) -> (a, evalExpr env e)) b) in
             makeDecNT (evalExpr env e) bindings
-        ) in print_endline "}"; r
+        ) in print_endline ">>"; r
+
+
 
     and makeDecNT nt bindings = match nt with
         | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children) ->
