@@ -27,8 +27,8 @@ and value =
     | TerminalV of terminaltype * string
 [@@ deriving show { with_path = false }]
 and attrinst =
-    | InhI of value option
-    | SynI of lzsyn
+    | InhI of ((evalctx [@opaque]) * lzexp) option
+    | SynI of lzexp
 [@@ deriving show { with_path = false }]
 and production = Production of name
     * nonterminaltype (* type of produced nonterminal (i.e. what this prod belongs to) *)
@@ -76,10 +76,10 @@ and language = Language of
     production list *
     attrrule list
 [@@ deriving show { with_path = false }]
-and lzsyn = lzsyninner ref
+and lzexp = lzexpinner ref
 [@@ deriving show { with_path = false }]
-and lzsyninner =
-    | Waiting of bool ref * expr
+and lzexpinner =
+    | Waiting of bool ref * value env * expr
                  (* bool = inprogress *)
     | Forced of value
 [@@ deriving show { with_path = false }]
@@ -189,41 +189,46 @@ let getEval lang =
                 | BareNonterminalV _ as v -> resolveAttr (doAutoDec ctx env v) attr
                 | _ -> failwith "bad actual type to GetAttr")
         | Decorate (e, b) ->
-            let bindings = (List.map (fun (a, e) -> (a, evalExpr' env e)) b) in
-            makeDecNT (evalExpr' env e) bindings
+            let bindings = (List.map (fun (a, e) -> (a, makeLzExp env e)) b) in
+            makeDecNT ctx (evalExpr' env e) env bindings
         ) in 
             (* print_endline ">>"; *)
             r
 
-    and makeDecNT nt bindings = match nt with
+    and makeDecNT ctx nt env bindings = match nt with
         | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children) ->
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
-                | Some v -> InhI (Some v)
+                | Some v -> InhI (Some (ctx, v))
                 | None -> 
                     (match List.find_opt (fun x -> match x with
                         | (attr', prod', SynImpl _) -> (attrEq attr' attr) && (prodEq prod' prod)
                         | _ -> false) rules
                     with
-                        | Some (_, _, SynImpl e) -> SynI (makeLzSyn e)
+                        | Some (_, _, SynImpl e) -> SynI (makeLzExp env e)
                         | _ -> InhI (None))
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs)
         | _ -> failwith "bad args to makeDecNT"
 
-    and makeLzSyn expr =
-        ref (Waiting (ref false, expr))
+    and makeLzExp env expr =
+        ref (Waiting (ref false, env, expr))
 
-    and forceLzSyn topval lzsyn = match !lzsyn with
+    and forceLzExp ctx lzexp = match !lzexp with
         | Forced x -> x
-        | Waiting (inprogress, expr) ->
-                if !inprogress then failwith "Circular forcing" else
-                inprogress := true;
-                let res = evalExpr (Some topval) [] expr in
-            lzsyn := Forced res; res
+        | Waiting (inprogress, env, expr) ->
+            if !inprogress then
+                (print_endline "\n---CIRCULAR FORCING---";
+                print_endline ([%show:lzexp] lzexp);
+                print_endline ([%show:evalctx] ctx);
+                failwith "Circular forcing")
+            else
+            inprogress := true;
+            let res = evalExpr ctx env expr in
+            lzexp := Forced res; res
 
     and resolveAttr v attr = match (getAttrSlotByName v attr) with
-        | InhI (Some x) -> x
+        | InhI (Some(ctx, f)) -> forceLzExp ctx f
+        | SynI f -> forceLzExp (Some v) f
         | InhI (None) -> failwith "inh attribute not provided"
-        | SynI f -> forceLzSyn v f
 
     and doAutoDec ctx env v = 
         (* print_endline ("doAutoDec ctx="^([%show: evalctx] ctx)^"\n----- v="^([%show: value] v)); *)

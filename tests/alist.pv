@@ -1,33 +1,24 @@
 declare nonterminal AssocList
+declare inherited attribute lookingFor :: string
+declare synthesized attribute result :: int
+attach attribute lookingFor on AssocList
+attach attribute result on AssocList
+
 declare production NilAssocList
-AssocList ::=
+top::AssocList ::= {}
+
 declare production ConsAssocList
-AssocList ::= name::int val::int tail::AssocList
-
-declare attribute name_ :: int
-attach attribute name_ on AssocList
-implement attribute name_ on ConsAssocList = name;
-declare attribute val_ :: int
-attach attribute val_ on AssocList
-implement attribute val_ on ConsAssocList = val;
-declare attribute tail_ :: AssocList
-attach attribute tail_ on AssocList
-implement attribute tail_ on ConsAssocList = tail;
-
-declare nonterminal AssocListSearch
-declare production DoSearch
-AssocListSearch ::= sought::int list::AssocList
-declare attribute result :: int
-attach attribute result on AssocListSearch
-implement attribute result on DoSearch = if list.name_==sought then list.val_ else DoSearch(sought, list.tail_).result;
+top::AssocList ::= name::string val::int rest::AssocList {
+	top.result = if name == top.lookingFor then val else rest.result;
+	rest.lookingFor = top.lookingFor;
+}
 
 declare nonterminal Main_nt
-
-declare attribute exitcode :: int
-
+declare synthesized attribute exitcode :: int
 attach attribute exitcode on Main_nt
 
 declare production Main
-Main_nt ::= 
-
-implement attribute exitcode on Main = ConsAssocList(1, 1001, NilAssocList());
+top::Main_nt ::= {
+	top.exitcode = decorate ConsAssocList("foo", 1, ConsAssocList("bar", 2, NilAssocList()))
+		{lookingFor = "bar"}.result;
+}

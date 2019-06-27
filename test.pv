@@ -1,17 +1,9 @@
-declare nonterminal AssocList
-declare inherited attribute lookingFor :: string
-declare synthesized attribute result :: int
-attach attribute lookingFor on AssocList
-attach attribute result on AssocList
+declare nonterminal NT
+declare inherited attribute v :: int
+attach attribute v on NT
 
-declare production NilAssocList
-top::AssocList ::= {}
-
-declare production ConsAssocList
-top::AssocList ::= name::string val::int rest::AssocList {
-	top.result = if name == top.lookingFor then val else rest.result;
-	rest.lookingFor = top.lookingFor;
-}
+declare production A
+top::NT ::= { }
 
 declare nonterminal Main_nt
 declare synthesized attribute exitcode :: int
@@ -19,6 +11,5 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = decorate ConsAssocList("foo", 1, ConsAssocList("bar", 2, NilAssocList()))
-		{lookingFor = "bar"}.result;
+	top.exitcode = decorate A() {v = 1/0};
 }

@@ -1,0 +1,95 @@
+declare nonterminal AssocList
+declare inherited attribute lookingFor :: string
+declare synthesized attribute result :: int
+attach attribute lookingFor on AssocList
+attach attribute result on AssocList
+
+declare production NilAssocList
+top::AssocList ::= {}
+
+declare production ConsAssocList
+top::AssocList ::= name::string val::int rest::AssocList {
+	top.result = if name == top.lookingFor then val else rest.result;
+	rest.lookingFor = top.lookingFor;
+}
+
+declare nonterminal Expr
+declare synthesized attribute val :: int
+declare inherited attribute env :: AssocList
+attach attribute env on Expr
+attach attribute val on Expr
+
+declare production Const
+top::Expr ::= val::int {
+	top.val = val;
+}
+
+declare production Name
+top::Expr ::= n::string {
+	top.val = decorate top.env {lookingFor = n}.result;
+}
+
+declare production Add
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = l.val + r.val;
+}
+
+declare production Sub
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = l.val - r.val;
+}
+
+declare production Mul
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = l.val * r.val;
+}
+
+declare production Div
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = l.val / r.val;
+}
+
+declare production Eq
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = if l.val == r.val then 1 else 0;
+}
+
+declare production If
+top::Expr ::= i::Expr t::Expr e::Expr {
+	i.env = top.env;
+	t.env = top.env;
+	e.env = top.env;
+	top.val = if i.val == 0 then e.val else t.val;
+}
+
+declare production Let
+top::Expr ::= binder::string bound::Expr body::Expr {
+	bound.env = top.env;
+	body.env = ConsAssocList(binder, bound.val, top.env);
+	top.val = body.val;
+}
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: int
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = decorate
+		Let("x", Const(1), Let("y", Const(2),
+			If(
+				Eq(Name("x"), Name("y")),
+				Const(100),
+				Const(200))))
+	{env = NilAssocList()}.val;
+}
