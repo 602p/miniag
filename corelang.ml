@@ -124,7 +124,7 @@ let typeOfValue : value -> typerep = function
     | TerminalV (ty, _) -> TerminalT ty
 
 let getEval lang =
-    match lang with Language (nonterminaltypes, terminaltypes, attributes, productions, rules) ->
+    match lang with Language (_, _, _, _, rules) ->
     let rec evalExpr (ctx : evalctx) (env : value env) (expr : expr) : value =
         (* print_endline ("eval: "^([%show: expr] expr)^"\n <<"); *)
         let evalExpr' = evalExpr ctx in
@@ -178,7 +178,7 @@ let getEval lang =
 
         | Construct (prod, args) ->
             (let args = List.map (evalExpr' env) args in
-            match prod with Production (name, (_, _, attrs), _, childrentys) ->
+            match prod with Production (name, _, _, childrentys) ->
             enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
             List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y))
                 ("bad actual type to a Construct("^name^")")) args childrentys;
@@ -204,13 +204,12 @@ let getEval lang =
                         | (attr', prod', SynImpl _) -> (attrEq attr' attr) && (prodEq prod' prod)
                         | _ -> false) rules
                     with
-                        | Some (_, _, SynImpl e) -> SynI (makeLzSyn prod children e)
+                        | Some (_, _, SynImpl e) -> SynI (makeLzSyn e)
                         | _ -> InhI (None))
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs)
         | _ -> failwith "bad args to makeDecNT"
 
-    and makeLzSyn prod children expr =
-        match prod with Production (_, _, _, childnames) ->
+    and makeLzSyn expr =
         ref (Waiting (ref false, expr))
 
     and forceLzSyn topval lzsyn = match !lzsyn with
@@ -229,9 +228,8 @@ let getEval lang =
     and doAutoDec ctx env v = 
         (* print_endline ("doAutoDec ctx="^([%show: evalctx] ctx)^"\n----- v="^([%show: value] v)); *)
         (* List.iter (fun x -> print_endline ("----- rule: "^([%show: attrrule] x))) rules; *)
-        match ctx, v with
-        | (Some (DecoratedNonterminalV (_, ctxchildren, _) as ctx),
-            BareNonterminalV (Production (_, toptyp, topname, childtypes), children)) ->
+        match ctx with
+        | Some (DecoratedNonterminalV (_, ctxchildren, _) as ctx) ->
             let validrules = List.fold_left (fun acc x -> match x with
                 | (attr, ruleprod, InhImpl (childno, expr)) -> if (prodEq ruleprod (prodOfNt ctx) && 
                     (List.nth ctxchildren childno) == v) then (attr, expr)::acc else acc
@@ -240,6 +238,6 @@ let getEval lang =
             in
                 (* print_endline ("\nMatching Rules: "^([%show: (attribute * expr) list] validrules)); *)
                 evalExpr (Some ctx) env (Decorate (Const v, validrules))
-        | _ -> failwith "doAutoDec not of Bare (or no ctx)"
+        | _ -> failwith "doAutoDec with no ctx"
 
-    in evalExpr None
+    in evalExpr None []

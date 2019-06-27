@@ -28,3 +28,5 @@ let findNthP lst x = let rec findNthP' x lst c = match lst with
 	    | [] -> failwith "Not Found"
 	    | hd::tl -> if (x hd) then c else findNthP' x tl (c+1) in
     findNthP' x lst 0
+
+let flatMap f x = List.flatten (List.map f x)

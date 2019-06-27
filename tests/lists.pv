@@ -1,27 +1,22 @@
 declare nonterminal List
-
-declare attribute sum :: int
-
+declare synthesized attribute sum :: int
 attach attribute sum on List
 
 declare production Nil
-List ::=
-
-implement attribute sum on Nil = 0;
+top::List ::= {
+	top.sum = 0;
+}
 
 declare production Cons
-List ::= x::int xs::List
-
-implement attribute sum on Cons = x + xs.sum;
-
+top::List ::= x::int xs::List {
+	top.sum = x + xs.sum;
+}
 
 declare nonterminal Main_nt
-
-declare attribute exitcode :: int
-
+declare synthesized attribute exitcode :: int
 attach attribute exitcode on Main_nt
 
 declare production Main
-Main_nt ::= 
-
-implement attribute exitcode on Main = Cons(1, Cons(2, Cons(3, Nil()))).sum;
+top::Main_nt ::= {
+	top.exitcode = Cons(1, Cons(2, Cons(3, Nil()))).sum;
+}
