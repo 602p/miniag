@@ -1,3 +1,5 @@
+(ocamllex lex)
+(ocamlyacc parse)
 (executable
  (name main)
  (preprocess
