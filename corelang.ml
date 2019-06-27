@@ -75,11 +75,18 @@ and language = Language of
 and lzsyn = lzsyninner ref
 [@@ deriving show { with_path = false }]
 and lzsyninner =
-    | Waiting of name * value env * expr
+    | Waiting of bool ref * name * value env * expr
+                 (* bool = inprogress *)
     | Forced of value
+[@@ deriving show { with_path = false }]
+and evalctx = value option (* nt-owning-the-rule-being-evaluated or None=toplevel *)
 [@@ deriving show { with_path = false }]
 
 let nameOfAttr = function Attribute (n, _, _) -> n
+let prodOfNt = function
+    | BareNonterminalV (p, _) -> p
+    | DecoratedNonterminalV (p, _, _) -> p
+    | _ -> failwith "prodOfNt not of NT"
 
 let getChildByName v n = match v with
     | BareNonterminalV (Production (_, _, _, childmap), children) ->
@@ -112,12 +119,13 @@ let typeOfValue : value -> typerep = function
 
 let getEval lang =
     match lang with Language (nonterminaltypes, terminaltypes, attributes, productions, rules) ->
-    let rec evalExpr (env : value env) (expr : expr) : value =
+    let rec evalExpr (ctx : evalctx) (env : value env) (expr : expr) : value =
         print_endline ("eval: "^([%show: expr] expr)^"\n <<");
+        let evalExpr' = evalExpr ctx in
         let r = (match expr with
         | Const v -> v
         | BinOp (l, op, r) ->
-            let l', r' = evalExpr env l, evalExpr env r in
+            let l', r' = evalExpr' env l, evalExpr' env r in
             (
             let do_iii op = (match l', r' with
                 | IntV l'', IntV r'' -> IntV (op l'' r'')
@@ -137,7 +145,7 @@ let getEval lang =
                 | UnitV, UnitV -> BoolV true
                 | _ -> failwith "bad actual type to bool binop"))
         | UnOp (a, op) ->
-            let a' = evalExpr env a in
+            let a' = evalExpr' env a in
             (match op with
             | Not -> (match a' with
                 | BoolV a'' -> BoolV (not a'')
@@ -145,28 +153,28 @@ let getEval lang =
             | Neg -> (match a' with
                 | IntV a'' -> IntV (-a'')
                 | _ -> failwith "bad actual type to int unop"))
-        | Let (bound, binding, body) -> evalExpr ((binding, evalExpr env bound)::env) body
+        | Let (bound, binding, body) -> evalExpr' ((binding, evalExpr' env bound)::env) body
         | Name x -> List.assoc x env
-        | IfThenElse (cond, t, f) -> (match evalExpr env cond with
-            | BoolV true -> evalExpr env t
-            | BoolV false -> evalExpr env f
+        | IfThenElse (cond, t, f) -> (match evalExpr' env cond with
+            | BoolV true -> evalExpr' env t
+            | BoolV false -> evalExpr' env f
             | _ -> failwith "bad actual type to ifthenelse")
         (* ------------------------------------------------------------------- *)
         | Construct (prod, args) ->
-            (let args = List.map (evalExpr env) args in
+            (let args = List.map (evalExpr' env) args in
             match prod with Production (name, (_, _, attrs), _, childrentys) ->
             enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
             List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y))
                 ("bad actual type to a Construct("^name^")")) args childrentys;
            BareNonterminalV (prod, args))
         | GetAttr (nt, attr) ->
-            (match evalExpr env nt with
+            (match evalExpr' env nt with
                 | DecoratedNonterminalV _ as v -> resolveAttr v attr
-                | BareNonterminalV _ as v -> resolveAttr (doAutoDec v) attr
+                | BareNonterminalV _ as v -> resolveAttr (doAutoDec ctx env v) attr
                 | _ -> failwith "bad actual type to GetAttr")
         | Decorate (e, b) ->
-            let bindings = (List.map (fun (a, e) -> (a, evalExpr env e)) b) in
-            makeDecNT (evalExpr env e) bindings
+            let bindings = (List.map (fun (a, e) -> (a, evalExpr' env e)) b) in
+            makeDecNT (evalExpr' env e) bindings
         ) in print_endline ">>"; r
 
 
@@ -188,11 +196,15 @@ let getEval lang =
     and makeLzSyn prod children expr =
         match prod with Production (_, _, topname, childnames) ->
         let env = zip (List.map fst childnames) children in
-        ref (Waiting (topname, env, expr))
+        ref (Waiting (ref false, topname, env, expr))
 
     and forceLzSyn topval lzsyn = match !lzsyn with
         | Forced x -> x
-        | Waiting (topname, env, expr) -> let res = evalExpr ((topname, topval) :: env) expr in
+        | Waiting (inprogress, topname, env, expr) ->
+                if !inprogress then failwith "Circular forcing" else
+                inprogress := true;
+                let res = evalExpr (Some topval)
+                ((topname, topval) :: env) expr in
             lzsyn := Forced res; res
 
     and resolveAttr v attr = match (getAttrSlotByName v attr) with
@@ -200,16 +212,20 @@ let getEval lang =
         | InhI (None) -> failwith "inh attribute not provided"
         | SynI f -> forceLzSyn v f
 
-    and doAutoDec = function
-        | BareNonterminalV (Production (_, toptyp, topname, childtypes) as prod, children) as v ->
-            print_endline ([%show: production] prod);
-            let rules = List.find_all (fun x -> match x with
-                | (_, prod', InhImpl _) -> prodEq prod' prod
-                | _ -> false
-            ) rules
+    and doAutoDec ctx env v = 
+        print_endline ("doAutoDec ctx="^([%show: evalctx] ctx)^"\n----- v="^([%show: value] v));
+        List.iter (fun x -> print_endline ("----- rule: "^([%show: attrrule] x))) rules;
+        match ctx, v with
+        | (Some (DecoratedNonterminalV (_, ctxchildren, _) as ctx),
+            BareNonterminalV (Production (_, toptyp, topname, childtypes), children)) ->
+            let validrules = List.fold_left (fun acc x -> match x with
+                | (attr, ruleprod, InhImpl (childno, expr)) -> if (prodEq ruleprod (prodOfNt ctx) && 
+                    (List.nth ctxchildren childno) == v) then (attr, expr)::acc else acc
+                | _ -> acc
+            ) [] rules
             in
-                print_endline ([%show: attrrule list] rules);
-                v
+                print_endline ("\nMatching Rules: "^([%show: (attribute * expr) list] validrules));
+                evalExpr (Some ctx) env (Decorate (Const v, validrules))
         | _ -> failwith "???"
 
-    in evalExpr
+    in evalExpr None
