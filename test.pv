@@ -1,12 +1,58 @@
-declare nonterminal NT
-declare inherited attribute d :: int
-attach attribute d on NT
-declare synthesized attribute u :: int
-attach attribute u on NT
+declare nonterminal AssocList
+declare inherited attribute lookingFor :: string
+declare synthesized attribute result :: int
+attach attribute lookingFor on AssocList
+attach attribute result on AssocList
 
-declare production A
-top::NT ::= {
-	top.u = 3;
+declare production NilAssocList
+top::AssocList ::= {}
+
+declare production ConsAssocList
+top::AssocList ::= name::string val::int rest::AssocList {
+	top.result = if name == top.lookingFor then val else rest.result;
+	rest.lookingFor = top.lookingFor;
+}
+
+declare nonterminal Expr
+declare synthesized attribute val :: int
+declare inherited attribute env :: AssocList
+attach attribute env on Expr
+attach attribute val on Expr
+
+declare nonterminal Stmt
+declare inherited attribute envDown :: AssocList
+declare synthesized attribute envUp :: AssocList
+attach attribute envDown on Stmt
+attach attribute envUp on Stmt
+
+declare production Const
+top::Expr ::= val::int {
+	top.val = val;
+}
+
+declare production Name
+top::Expr ::= n::string {
+	top.val = decorate top.env {lookingFor = n}.result;
+}
+
+declare production Add
+top::Expr ::= l::Expr r::Expr {
+	l.env = top.env;
+	r.env = top.env;
+	top.val = l.val + r.val;
+}
+
+declare production Assign
+top::Stmt ::= name::string value::Expr {
+	top.envUp = ConsAssocList(name, value.val, top.envDown);
+	value.env = top.envDown;
+}
+
+declare production Seq
+top::Stmt ::= fst::Stmt snd::Stmt {
+	fst.envDown = top.envDown;
+	snd.envDown = fst.envUp;
+	top.envUp = snd.envUp;
 }
 
 declare nonterminal Main_nt
@@ -15,5 +61,9 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = decorate A() {d = 1/0}.u;
+	top.exitcode = decorate (decorate
+		Seq(
+			Assign("x", Const(1)),
+			Assign("x", Add(Name("x"), Const(1))))
+	{envDown = NilAssocList()}.envUp) {lookingFor="x"}.result;
 }

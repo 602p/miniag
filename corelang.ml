@@ -10,13 +10,16 @@ type typerep =
     | TerminalT of terminaltype
     | TyVarT of string
 [@@ deriving show { with_path = false }]
+
 and nonterminaltype = ((name *
     production list ref *
     attribute list ref)
 [@printer fun fmt (x, _, _) -> fprintf fmt "<NTT:%s>" x])
 [@@ deriving show { with_path = false }]
+
 and terminaltype = name
 [@@ deriving show { with_path = false }]
+
 and value =
     | StringV of string
     | IntV of int
@@ -26,19 +29,24 @@ and value =
     | DecoratedNonterminalV of production * value list * attrinst list
     | TerminalV of terminaltype * string
 [@@ deriving show { with_path = false }]
+
 and attrinst =
     | InhI of ((evalctx [@opaque]) * lzexp) option
     | SynI of lzexp
 [@@ deriving show { with_path = false }]
+
 and production = Production of name
     * nonterminaltype (* type of produced nonterminal (i.e. what this prod belongs to) *)
     * name (* name bound to the production *)
     * (name * typerep) list (* name and type of children *)
 [@@ deriving show { with_path = false }]
+
 and attrflowtype = Inh | Syn
 [@@ deriving show { with_path = false }]
+
 and attribute = Attribute of name * typerep * attrflowtype
 [@@ deriving show { with_path = false }]
+
 and expr =
     | Const of value
     | BinOp of expr * binoper * expr
@@ -54,21 +62,28 @@ and expr =
     | GetAttr of expr * attribute
     | Decorate of expr * (attribute * expr) list
 [@@ deriving show { with_path = false }]
+
 and binoper = Add | Sub | Mul | Div | Concat | Eq
 [@@ deriving show { with_path = false }]
+
 and unoper = Not | Neg
 [@@ deriving show { with_path = false }]
+
 and 'a env = (name * 'a) list
 [@@ deriving show { with_path = false }]
+
 and name = string
 [@@ deriving show { with_path = false }]
+
 and attrrule = attribute * production * attrimpl
 [@@ deriving show { with_path = false }]
+
 and attrimpl =
     | InhImpl of int * (* child number *)
                 expr (* expr in scope of 'Self' *)
     | SynImpl of expr (* expr in scope of node *)
 [@@ deriving show { with_path = false }]
+
 and language = Language of
     nonterminaltype list *
     terminaltype list *
@@ -76,13 +91,16 @@ and language = Language of
     production list *
     attrrule list
 [@@ deriving show { with_path = false }]
+
 and lzexp = lzexpinner ref
 [@@ deriving show { with_path = false }]
+
 and lzexpinner =
     | Waiting of bool ref * value env * expr
                  (* bool = inprogress *)
     | Forced of value
 [@@ deriving show { with_path = false }]
+
 and evalctx = value option (* nt-owning-the-rule-being-evaluated or None=toplevel *)
 [@@ deriving show { with_path = false }]
 
