@@ -104,25 +104,25 @@ and evalctx = value option (* nt-owning-the-rule-being-evaluated or None=topleve
 [@@ deriving show { with_path = false }]
 
 and origininfo =
-    | Bottom
+    evalctx
 [@@ deriving show { with_path = false }]
 
 
 let nameOfAttr = function Attribute (n, _, _) -> n
 let prodOfNt = function
-    | BareNonterminalV (p, _) -> p
-    | DecoratedNonterminalV (p, _, _) -> p
+    | BareNonterminalV (p, _, _) -> p
+    | DecoratedNonterminalV (p, _, _, _) -> p
     | _ -> failwith "prodOfNt not of NT"
 
 let getChildByName v n = match v with
-    | BareNonterminalV (Production (_, _, _, childmap), children) ->
+    | BareNonterminalV (Production (_, _, _, childmap), children, _) ->
         List.nth children (findNthP childmap (fun x -> (fst x) = n))
-    | DecoratedNonterminalV (Production (_, _, _, childmap), children, _) ->
+    | DecoratedNonterminalV (Production (_, _, _, childmap), children, _, _) ->
         List.nth children (findNthP childmap (fun x -> (fst x) = n))
     | _ -> failwith "getChildByName not of *NonterminalV"
 
 let getAttrSlotByName v n = match v with
-    | DecoratedNonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs) ->
+    | DecoratedNonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs, _) ->
         List.nth attrs (findNth !attrmap n)
     | _ -> failwith "getAttrSlotByName not of DecoratedNonterminalV"
 
@@ -139,8 +139,8 @@ let typeOfValue : value -> typerep = function
     | IntV _ -> IntT
     | BoolV _ -> BoolT
     | UnitV -> UnitT
-    | BareNonterminalV (Production(_, ty, _, _), _) -> BareNonterminalT ty
-    | DecoratedNonterminalV (Production(_, ty, _, _), _, _) -> DecoratedNonterminalT ty
+    | BareNonterminalV (Production(_, ty, _, _), _, _) -> BareNonterminalT ty
+    | DecoratedNonterminalV (Production(_, ty, _, _), _, _, _) -> DecoratedNonterminalT ty
     | TerminalV (ty, _) -> TerminalT ty
 
 let getEval lang =
@@ -190,8 +190,8 @@ let getEval lang =
 
         | Self -> assertSome ctx
         | Child x -> (match (assertSome ctx) with
-            | DecoratedNonterminalV (_, children, _) -> List.nth children x
-            | BareNonterminalV (_, children) -> List.nth children x
+            | DecoratedNonterminalV (_, children, _, _) -> List.nth children x
+            | BareNonterminalV (_, children, _) -> List.nth children x
             | _ -> failwith "CTX not NT?")
 
         (* ------------------------------------------------------------------- *)
@@ -202,7 +202,7 @@ let getEval lang =
             enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
             List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y))
                 ("bad actual type to a Construct("^name^")")) args childrentys;
-           BareNonterminalV (prod, args))
+           BareNonterminalV (prod, args, ctx))
         | GetAttr (nt, attr) ->
             (match evalExpr' env nt with
                 | DecoratedNonterminalV _ as v -> resolveAttr v attr
@@ -215,14 +215,14 @@ let getEval lang =
             r
 
     and makeDecNT ctx nt env bindings = match nt with
-        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children) ->
+        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children, _) ->
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
                 | Some v -> InhI (Some (ctx, makeLzExp env v))
                 | None -> applyFirst (function
                         | (attr', prod', SynImpl e) when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env e))
                         | _ -> None) (InhI None) rules
-            ) !attrmap in DecoratedNonterminalV (prod, children, attrs)
+            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, ctx)
         | _ -> failwith "bad args to makeDecNT"
 
     and makeLzExp env expr =
@@ -250,7 +250,7 @@ let getEval lang =
         (* print_endline ("doAutoDec ctx="^([%show: evalctx] ctx)^"\n----- v="^([%show: value] v)); *)
         (* List.iter (fun x -> print_endline ("----- rule: "^([%show: attrrule] x))) rules; *)
         match ctx with
-        | Some (DecoratedNonterminalV (_, ctxchildren, _) as ctx) ->
+        | Some (DecoratedNonterminalV (_, ctxchildren, _, _) as ctx) ->
             let validrules = filterMap (fun x -> match x with
                 | (attr, ruleprod, InhImpl (childno, expr)) when (prodEq ruleprod (prodOfNt ctx) && 
                     (List.nth ctxchildren childno) == v) -> Some (attr, expr)
