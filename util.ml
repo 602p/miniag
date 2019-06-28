@@ -24,6 +24,11 @@ let findNth lst x = let rec findNth' x lst c = match lst with
 	    | hd::tl -> if (hd=x) then c else findNth' x tl (c+1) in
     findNth' x lst 0
 
+let findNthI lst x = let rec findNth' x lst c = match lst with
+	    | [] -> failwith "Not Found"
+	    | hd::tl -> if (hd==x) then c else findNth' x tl (c+1) in
+    findNth' x lst 0
+
 let findNthP lst x = let rec findNthP' x lst c = match lst with
 	    | [] -> failwith "Not Found"
 	    | hd::tl -> if (x hd) then c else findNthP' x tl (c+1) in
@@ -42,3 +47,7 @@ let rec filterMap f = function
 	| x::xs -> match f x with
 		| Some r -> r::filterMap f xs
 		| None -> filterMap f xs
+
+let rec splitPairList l = (List.map fst l, List.map snd l)
+let fst2 (a, b, _) = (a, b)
+let snd2 (_, b, c) = (b, c)
