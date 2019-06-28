@@ -24,8 +24,8 @@ and value =
     | IntV of int
     | BoolV of bool
     | UnitV
-    | BareNonterminalV of production * value list
-    | DecoratedNonterminalV of production * value list * attrinst list
+    | BareNonterminalV of production * value list * origininfo
+    | DecoratedNonterminalV of production * value list * attrinst list * origininfo
     | TerminalV of terminaltype * string
 [@@ deriving show { with_path = false }]
 
@@ -103,6 +103,9 @@ and lzexpinner =
 and evalctx = value option (* nt-owning-the-rule-being-evaluated or None=toplevel *)
 [@@ deriving show { with_path = false }]
 
+and origininfo =
+    | Bottom
+[@@ deriving show { with_path = false }]
 
 
 let nameOfAttr = function Attribute (n, _, _) -> n
