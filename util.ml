@@ -30,3 +30,15 @@ let findNthP lst x = let rec findNthP' x lst c = match lst with
     findNthP' x lst 0
 
 let flatMap f x = List.flatten (List.map f x)
+
+let rec applyFirst f z xs = match xs with
+	| [] -> z
+	| x::xs -> match f x with
+		| Some r -> r
+		| None -> applyFirst f z xs
+
+let rec filterMap f = function
+	| [] -> []
+	| x::xs -> match f x with
+		| Some r -> r::filterMap f xs
+		| None -> filterMap f xs

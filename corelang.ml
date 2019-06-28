@@ -8,7 +8,6 @@ type typerep =
     | BareNonterminalT of nonterminaltype
     | DecoratedNonterminalT of nonterminaltype
     | TerminalT of terminaltype
-    | TyVarT of string
 [@@ deriving show { with_path = false }]
 
 and nonterminaltype = ((name *
@@ -207,8 +206,7 @@ let getEval lang =
                 | BareNonterminalV _ as v -> resolveAttr (doAutoDec ctx env v) attr
                 | _ -> failwith "bad actual type to GetAttr")
         | Decorate (e, b) ->
-            let bindings = (List.map (fun (a, e) -> (a, makeLzExp env e)) b) in
-            makeDecNT ctx (evalExpr' env e) env bindings
+            makeDecNT ctx (evalExpr' env e) env b
         ) in 
             (* print_endline ">>"; *)
             r
@@ -216,14 +214,11 @@ let getEval lang =
     and makeDecNT ctx nt env bindings = match nt with
         | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children) ->
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
-                | Some v -> InhI (Some (ctx, v))
-                | None -> 
-                    (match List.find_opt (fun x -> match x with
-                        | (attr', prod', SynImpl _) -> (attrEq attr' attr) && (prodEq prod' prod)
-                        | _ -> false) rules
-                    with
-                        | Some (_, _, SynImpl e) -> SynI (makeLzExp env e)
-                        | _ -> InhI (None))
+                | Some v -> InhI (Some (ctx, makeLzExp env v))
+                | None -> applyFirst (function
+                        | (attr', prod', SynImpl e) when (attrEq attr' attr) && (prodEq prod' prod) ->
+                            Some (SynI (makeLzExp env e))
+                        | _ -> None) (InhI None) rules
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs)
         | _ -> failwith "bad args to makeDecNT"
 
@@ -253,11 +248,11 @@ let getEval lang =
         (* List.iter (fun x -> print_endline ("----- rule: "^([%show: attrrule] x))) rules; *)
         match ctx with
         | Some (DecoratedNonterminalV (_, ctxchildren, _) as ctx) ->
-            let validrules = List.fold_left (fun acc x -> match x with
-                | (attr, ruleprod, InhImpl (childno, expr)) -> if (prodEq ruleprod (prodOfNt ctx) && 
-                    (List.nth ctxchildren childno) == v) then (attr, expr)::acc else acc
-                | _ -> acc
-            ) [] rules
+            let validrules = filterMap (fun x -> match x with
+                | (attr, ruleprod, InhImpl (childno, expr)) when (prodEq ruleprod (prodOfNt ctx) && 
+                    (List.nth ctxchildren childno) == v) -> Some (attr, expr)
+                | _ -> None
+            ) rules
             in
                 (* print_endline ("\nMatching Rules: "^([%show: (attribute * expr) list] validrules)); *)
                 evalExpr (Some ctx) env (Decorate (Const v, validrules))
