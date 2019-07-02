@@ -16,12 +16,13 @@ let parse_file filename =
     print_endline "Invoke...";
     let res = (getEval lang) (GetAttr (Decorate (Construct (mainprod, []), []), returncode)) in
     print_endline "\n\n";
-    print_endline ([%show: value] res);
+    print_endline (actually_pretty_print res);
     match res with
       | BareNonterminalV(_, _, oi)
       | DecoratedNonterminalV(_, _, _, oi) ->
-        print_endline "\n\nOI:";
-        print_endline (string_of_oi oi)
+        print_endline "\n\nToplevel OI:";
+        print_endline (string_of_oi oi);
+        debug_oi res
       | _ -> ()
 
 let () =

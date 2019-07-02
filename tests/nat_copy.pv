@@ -1,0 +1,42 @@
+declare nonterminal NatA
+declare nonterminal NatB
+declare synthesized attribute asNatB :: NatB
+attach attribute asNatB on NatA
+
+declare synthesized attribute asNatA :: NatA
+attach attribute asNatA on NatB
+
+declare production ZA
+top::NatA ::= {
+	top.asNatB = ZB()
+		#"Base Case (A->B)";
+}
+
+declare production SA
+top::NatA ::= n::NatA {
+	top.asNatB = SB(n.asNatB)
+		#"Recursive Case (A->B)";
+}
+
+declare production ZB
+top::NatB ::= {
+	top.asNatA = ZA()
+		#"Base Case (B->A)";
+}
+
+declare production SB
+top::NatB ::= n::NatB {
+	top.asNatA = SA(n.asNatA)
+		#"Recursive Case (B->A)";
+}
+
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: NatA
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = SA(SA(SA(ZA()))).asNatB.asNatA
+		#"Query Final Value";
+}
