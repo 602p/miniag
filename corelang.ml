@@ -232,14 +232,14 @@ let getEval lang =
             r
 
     and makeDecNT ctx nt env (bindings : (attribute * (expr * attrrule option)) list) = match nt with
-        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children, _) as bare->
+        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children, origoi) as bare->
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
                 | Some (v, r) -> InhI (Some (ctx, makeLzExp env r v))
                 | None -> applyFirst (function
                         | (attr', prod', SynImpl e, _) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
-            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, (Some (bare, getRule ctx), "Decorated"))
+            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, origoi)
         | _ -> failwith "bad args to makeDecNT"
 
     and makeLzExp env r expr =
