@@ -59,6 +59,9 @@ rule scan = parse
   | "="
     { ASSIGN }
 
+  | "#"
+    { HATCH }
+
   | "=="
     { EQ }
 

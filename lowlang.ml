@@ -11,7 +11,7 @@ type lowstmt =
     | ProductionDecl of lowprod * (name * lownt) * (name * lowtype) list * lowrule list
                     (*  name      boundname nt      children and types *)
 [@@ deriving show]
-and lowrule = Rule of name * lowattr * lowexpr
+and lowrule = Rule of name * lowattr * lowexpr * string
 [@@ deriving show]
 and lowtype = name
 and lownt = name
@@ -70,12 +70,13 @@ let rec raiseProg prog =
     let impls = flatMap (fun stmt -> match stmt with
         | ProductionDecl (prodname, (boundname, _), children, rules) ->
             let childnames = List.map fst children in
-            List.map (fun rule -> match rule with Rule (name, attrname, body) ->
+            List.map (fun rule -> match rule with Rule (name, attrname, body, comment) ->
                 let attr = List.assoc attrname attributeMap in
                 let prod = List.assoc prodname prodMap in
                 (attr, prod,
-                    if name = boundname then SynImpl (raiseExpr prodMap attributeMap boundname childnames body)
-                    else InhImpl ((findNth childnames name), (raiseExpr prodMap attributeMap boundname childnames body))
+                    (if name = boundname then SynImpl (raiseExpr prodMap attributeMap boundname childnames body)
+                    else InhImpl ((findNth childnames name), (raiseExpr prodMap attributeMap boundname childnames body))),
+                    comment
                 )
             ) rules
         | _ -> []) prog in

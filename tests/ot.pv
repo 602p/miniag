@@ -1,0 +1,30 @@
+declare nonterminal NT
+declare synthesized attribute u :: XNT
+declare inherited attribute d :: XNT
+attach attribute u on NT
+attach attribute d on NT
+
+declare nonterminal XNT
+
+declare production X
+top::XNT ::= i::int {}
+
+declare production Foo
+top::NT ::= {
+	top.u = top.d;
+}
+
+declare production Top
+top::NT ::= x::NT {
+	top.u=x.u;
+	x.d=X(3);
+}
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: int
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = Top(Foo()).u;
+}

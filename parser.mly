@@ -37,6 +37,7 @@ open Lowlang
 %token INHERITED
 %token NOT
 %token EQ
+%token HATCH
 %token DECORATE
 %token <string> STRING
 %token <int> INT
@@ -81,7 +82,9 @@ rules:
 
 rule:
   ID DOT ID ASSIGN exp SEMICOLON
-    { Rule($1, $3, $5) }
+    { Rule($1, $3, $5, "") }
+| ID DOT ID ASSIGN exp HATCH STRING SEMICOLON
+    { Rule($1, $3, $5, $7) }
 
 exp:
   IF expA THEN exp ELSE exp

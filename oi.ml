@@ -6,8 +6,8 @@ let rec string_of_oi = function
         (match r with
             | None -> "(None)"
             | Some r -> "(Some "^([%show:attrrule] r)^")")
-        ^"\n - linked value: "^([%show: value] x)^(match x with
+        ^"\n -- linked value: "^([%show: value] x)^(match x with
         | BareNonterminalV(_, _, oi)
         | DecoratedNonterminalV(_, _, _, oi) ->
-            "\n -> "^(string_of_oi oi)
-        | _ -> "\n -> X")
+            "\n\n -> "^(string_of_oi oi)
+        | _ -> "\n\n -> X")

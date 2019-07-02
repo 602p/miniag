@@ -20,6 +20,7 @@ let parse_file filename =
     match res with
       | BareNonterminalV(_, _, oi)
       | DecoratedNonterminalV(_, _, _, oi) ->
+        print_endline "\n\nOI:";
         print_endline (string_of_oi oi)
       | _ -> ()
 

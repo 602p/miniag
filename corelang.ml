@@ -75,7 +75,7 @@ and 'a env = (name * 'a) list
 and name = string
 [@@ deriving show { with_path = false }]
 
-and attrrule = attribute * production * attrimpl
+and attrrule = attribute * production * attrimpl * string
 [@@ deriving show { with_path = false }]
 
 and attrimpl =
@@ -228,7 +228,7 @@ let getEval lang =
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
                 | Some (v, r) -> InhI (Some (ctx, makeLzExp env r v))
                 | None -> applyFirst (function
-                        | (attr', prod', SynImpl e) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
+                        | (attr', prod', SynImpl e, _) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs, (ctx, "Decorated"))
@@ -262,7 +262,7 @@ let getEval lang =
         match ctx with
         | Some (DecoratedNonterminalV (_, ctxchildren, _, _) as ctxv, r) ->
             let validrules = filterMap (fun rule -> match rule with
-                | (attr, ruleprod, InhImpl (childno, expr)) when (prodEq ruleprod (prodOfNt ctxv) && 
+                | (attr, ruleprod, InhImpl (childno, expr), _) when (prodEq ruleprod (prodOfNt ctxv) && 
                     (List.nth ctxchildren childno) == v) -> Some (attr, (expr, Some rule))
                 | _ -> None
             ) rules

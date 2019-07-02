@@ -1,27 +1,39 @@
-declare nonterminal NT
-declare synthesized attribute v :: NT
-attach attribute v on NT
+declare nonterminal Nat
+declare synthesized attribute asInt :: int
+attach attribute asInt on Nat
 
-declare production Baz
-top::NT ::= {
-	top.v = Foo();
+declare production Z
+top::Nat ::= {
+	top.asInt = 0;
 }
+
+declare production S
+top::Nat ::= n::Nat {
+	top.asInt = n.asInt + 1;
+}
+
+declare nonterminal NT
+declare synthesized attribute val :: Nat
+attach attribute val on NT
 
 declare production Bar
 top::NT ::= {
-	top.v = Baz();
+	top.val = S(S(Z()))
+		#"Construct the real deal";
 }
 
 declare production Foo
 top::NT ::= {
-	top.v = Bar().v;
+	top.val = Bar().val
+		#"Construct a Bar and ask for it's value";
 }
 
 declare nonterminal Main_nt
-declare synthesized attribute exitcode :: int
+declare synthesized attribute exitcode :: NT
 attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = Foo().v;
+	top.exitcode = decorate Foo().val {}
+		#"Query Final Value";
 }
