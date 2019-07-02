@@ -61,6 +61,7 @@ and expr =
     | Construct of production * expr list
     | GetAttr of expr * attribute
     | Decorate of expr * (attribute * expr) list
+    | New of expr
 [@@ deriving show { with_path = false }]
 
 and binoper = Add | Sub | Mul | Div | Concat | Eq
@@ -107,7 +108,7 @@ and evalctx = (value * attrrule option) option
 
 and origininfo =
     evalctx * string
-[@printer fun fmt (_, x) -> fprintf fmt "<OI>"]
+[@printer fun fmt _ -> fprintf fmt "<OI>"]
 [@@ deriving show { with_path = false }]
 
 
@@ -137,6 +138,10 @@ let typeEq x y = match x, y with
 let setRule r = function
     | None -> None
     | Some (x, _) -> Some (x, r)
+
+let getRule = function
+    | None -> None
+    | Some (_, r) -> r
 
 let attrEq x y = x == y
 let prodEq x y = x == y
@@ -219,19 +224,22 @@ let getEval lang =
 
         | Decorate (e, b) ->
             makeDecNT ctx (evalExpr' env e) env (List.map (fun x -> fst x, (snd x, None)) b)
+
+        | New x ->
+            duplicate ctx (evalExpr' env x)
         ) in 
             (* print_endline ">>"; *)
             r
 
     and makeDecNT ctx nt env (bindings : (attribute * (expr * attrrule option)) list) = match nt with
-        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children, _) ->
+        | BareNonterminalV (Production (_, (_, _, attrmap), _, _) as prod, children, _) as bare->
             let attrs = List.map (fun attr -> match List.assoc_opt attr bindings with
                 | Some (v, r) -> InhI (Some (ctx, makeLzExp env r v))
                 | None -> applyFirst (function
                         | (attr', prod', SynImpl e, _) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
-            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, (ctx, "Decorated"))
+            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, (Some (bare, getRule ctx), "Decorated"))
         | _ -> failwith "bad args to makeDecNT"
 
     and makeLzExp env r expr =
@@ -260,7 +268,7 @@ let getEval lang =
         (* print_endline ("doAutoDec ctx="^([%show: evalctx] ctx)^"\n----- v="^([%show: value] v)); *)
         (* List.iter (fun x -> print_endline ("----- rule: "^([%show: attrrule] x))) rules; *)
         match ctx with
-        | Some (DecoratedNonterminalV (_, ctxchildren, _, _) as ctxv, r) ->
+        | Some (DecoratedNonterminalV (_, ctxchildren, _, _) as ctxv, _) ->
             let validrules = filterMap (fun rule -> match rule with
                 | (attr, ruleprod, InhImpl (childno, expr), _) when (prodEq ruleprod (prodOfNt ctxv) && 
                     (List.nth ctxchildren childno) == v) -> Some (attr, (expr, Some rule))
@@ -270,5 +278,13 @@ let getEval lang =
                 (* print_endline ("\nMatching Rules: "^([%show: (attribute * expr) list] validrules)); *)
                 makeDecNT ctx v env validrules
         | _ -> failwith "doAutoDec with no ctx"
+
+    and duplicate ctx x = 
+        let r = getRule ctx in
+        let dup' = duplicate ctx in
+        match x with
+            | BareNonterminalV (p, v, _) as h -> BareNonterminalV (p, List.map dup' v, (Some (h, r), "New"))
+            | DecoratedNonterminalV (p, v, _, _) as h -> BareNonterminalV (p, List.map dup' v, (Some (h, r), "New"))
+            | x -> x
 
     in evalExpr None []

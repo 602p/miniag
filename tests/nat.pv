@@ -1,0 +1,45 @@
+declare nonterminal Nat
+declare synthesized attribute asInt :: int
+declare synthesized attribute plusOne :: Nat
+attach attribute asInt on Nat
+attach attribute plusOne on Nat
+
+declare production Z
+top::Nat ::= {
+	top.asInt = 0;
+	top.plusOne = S(new top)
+		#"plusOne Base case";
+}
+
+declare production S
+top::Nat ::= n::Nat {
+	top.asInt = n.asInt + 1;
+	top.plusOne = S(n.plusOne)
+		#"plusOne inductive case";
+}
+
+declare nonterminal NT
+declare synthesized attribute val :: Nat
+attach attribute val on NT
+
+declare production Bar
+top::NT ::= {
+	top.val = S(S(S(Z())))
+		#"Construct the real deal";
+}
+
+declare production Foo
+top::NT ::= {
+	top.val = Bar().val
+		#"Construct a Bar and ask for it's value";
+}
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: NT
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = Foo().val.plusOne
+		#"Query Final Value";
+}

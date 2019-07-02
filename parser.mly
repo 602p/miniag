@@ -37,6 +37,7 @@ open Lowlang
 %token INHERITED
 %token NOT
 %token EQ
+%token NEW
 %token HATCH
 %token DECORATE
 %token <string> STRING
@@ -119,12 +120,18 @@ expT:
 expF:
   NOT expF
     { UnOp($2, Not) }
+| expX
+    { $1 }
+
+expX:
+  expX DOT ID
+    { GetAttr($1, $3) }
 | expY
     { $1 }
 
 expY:
-  expY DOT ID
-    { GetAttr($1, $3) }
+ NEW expZ
+    { New $2 }
 | expZ
     { $1 }
 
@@ -143,6 +150,7 @@ expZ:
     { Construct ($1, $3) }
 | STRING
     { ConstStr $1 }
+
 | DECORATE exp LBRACE decorations RBRACE
     { Decorate ($2, $4) }
 

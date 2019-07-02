@@ -26,6 +26,9 @@ rule scan = parse
   | "declare"
     { DECLARE }
 
+  | "new"
+    { NEW }
+
   | "attribute"
     { ATTRIBUTE }
 

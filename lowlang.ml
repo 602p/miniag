@@ -28,6 +28,7 @@ and lowexpr =
     | GetAttr of lowexpr * lowattr
     | Name of name
     | Decorate of lowexpr * (lowattr * lowexpr) list
+    | New of lowexpr
 [@@ deriving show]
 and lowprog = lowstmt list
 
@@ -106,4 +107,5 @@ and raiseExpr prodmap attrmap parent children e =
                     Name x
         | Decorate (x, declist) -> Decorate (raiseExpr' x, List.map (fun x ->
             (List.assoc (fst x) attrmap, raiseExpr' (snd x))) declist)
+        | New x -> New (raiseExpr' x)
     in raiseExpr' e

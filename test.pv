@@ -1,31 +1,34 @@
-declare nonterminal Nat
-declare synthesized attribute asInt :: int
-attach attribute asInt on Nat
+declare nonterminal Marker
 
-declare production Z
-top::Nat ::= {
-	top.asInt = 0;
-}
-
-declare production S
-top::Nat ::= n::Nat {
-	top.asInt = n.asInt + 1;
-}
+declare production M
+top::Marker ::= { }
 
 declare nonterminal NT
-declare synthesized attribute val :: Nat
+declare synthesized attribute val :: Marker
 attach attribute val on NT
+
+declare production Quux
+top::NT ::= {
+	top.val = M()
+		#"Construct the real deal";
+}
+
+declare production Baz
+top::NT ::= {
+	top.val = Quux().val
+		#"Delegate to Quux";
+}
 
 declare production Bar
 top::NT ::= {
-	top.val = S(S(Z()))
-		#"Construct the real deal";
+	top.val = Baz().val
+		#"Delegate to Baz";
 }
 
 declare production Foo
 top::NT ::= {
 	top.val = Bar().val
-		#"Construct a Bar and ask for it's value";
+		#"Delegate to Bar";
 }
 
 declare nonterminal Main_nt
@@ -34,6 +37,6 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = decorate Foo().val {}
+	top.exitcode = Foo().val
 		#"Query Final Value";
 }

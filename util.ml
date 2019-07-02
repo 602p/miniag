@@ -48,6 +48,6 @@ let rec filterMap f = function
 		| Some r -> r::filterMap f xs
 		| None -> filterMap f xs
 
-let rec splitPairList l = (List.map fst l, List.map snd l)
+let splitPairList l = (List.map fst l, List.map snd l)
 let fst2 (a, b, _) = (a, b)
 let snd2 (_, b, c) = (b, c)
