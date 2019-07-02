@@ -1,0 +1,16 @@
+declare nonterminal NT
+
+declare production a
+top::NT ::= { }
+
+declare production b
+top::NT ::= x::NT { }
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: NT
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = b(a()) #"Entry Point";
+}

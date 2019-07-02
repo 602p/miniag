@@ -17,13 +17,15 @@ let parse_file filename =
     let res = (getEval lang) (GetAttr (Decorate (Construct (mainprod, []), []), returncode)) in
     print_endline "\n\n";
     print_endline (actually_pretty_print res);
-    match res with
+    (match res with
       | BareNonterminalV(_, _, oi)
       | DecoratedNonterminalV(_, _, _, oi) ->
         print_endline "\n\nToplevel OI:";
         print_endline (string_of_oi oi);
         debug_oi res
-      | _ -> ()
+      | _ -> ());
+    print_endline "\n\n\n";
+    makeGraphViz res
 
 let () =
   if Array.length Sys.argv <> 2

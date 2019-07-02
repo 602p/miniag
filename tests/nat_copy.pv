@@ -9,27 +9,26 @@ attach attribute asNatA on NatB
 declare production ZA
 top::NatA ::= {
 	top.asNatB = ZB()
-		#"Base Case (A->B)";
+		#"A->B Base";
 }
 
 declare production SA
 top::NatA ::= n::NatA {
 	top.asNatB = SB(n.asNatB)
-		#"Recursive Case (A->B)";
+		#"A->B Rec";
 }
 
 declare production ZB
 top::NatB ::= {
 	top.asNatA = ZA()
-		#"Base Case (B->A)";
+		#"B->A Base";
 }
 
 declare production SB
 top::NatB ::= n::NatB {
 	top.asNatA = SA(n.asNatA)
-		#"Recursive Case (B->A)";
+		#"B->A Rec";
 }
-
 
 declare nonterminal Main_nt
 declare synthesized attribute exitcode :: NatA
@@ -37,6 +36,6 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = SA(SA(SA(ZA()))).asNatB.asNatA
-		#"Query Final Value";
+	top.exitcode = SA(SA(ZA())).asNatB
+		#"Entry";
 }

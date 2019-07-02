@@ -213,7 +213,7 @@ let getEval lang =
             match prod with Production (name, _, _, childrentys) ->
             enforce (List.length args = List.length childrentys) "bad actual nr args to a Construct";
             List.iter2 (fun x y -> enforce (typeEq (typeOfValue x) (snd y))
-                ("bad actual type to a Construct("^name^")")) args childrentys;
+                ("bad actual type to a Construct("^name^"): "^([%show:typerep] (typeOfValue x)))) args childrentys;
            BareNonterminalV (prod, args, (ctx, "Constructed")))
 
         | GetAttr (nt, attr) ->
@@ -239,7 +239,12 @@ let getEval lang =
                         | (attr', prod', SynImpl e, _) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
-            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, origoi)
+            ) !attrmap in DecoratedNonterminalV (prod, children, attrs,
+                match 2 with
+                | 1 -> fst origoi, "Constructed*"
+                | 2 -> Some (bare, getRule ctx), "Decorated"
+                | 3 -> ctx, "Decorated"
+            )
         | _ -> failwith "bad args to makeDecNT"
 
     and makeLzExp env r expr =

@@ -1,0 +1,52 @@
+declare nonterminal Expr
+declare synthesized attribute expd :: Expr
+declare synthesized attribute simp :: Expr
+declare synthesized attribute isConstOne :: bool
+attach attribute expd on Expr
+attach attribute simp on Expr
+attach attribute isConstOne on Expr
+
+declare production const
+top::Expr ::= i::int {
+	top.expd = const(i) #"const expd";
+	top.simp = const(i) #"const simp";
+	top.isConstOne = i == 1;
+}
+
+declare production add
+top::Expr ::= l::Expr r::Expr {
+	top.expd = add(l.expd, r.expd) #"add expd";
+	top.simp = add(l.simp, r.simp) #"add simp";
+	top.isConstOne = false;
+}
+
+declare production sub
+top::Expr ::= l::Expr r::Expr {
+	top.expd = sub(l.expd, r.expd) #"sub expd";
+	top.simp = sub(l.simp, r.simp) #"sub simp";
+	top.isConstOne = false;
+}
+
+declare production mul
+top::Expr ::= l::Expr r::Expr {
+	top.expd = mul(l.expd, r.expd) #"mul expd";
+	top.simp = if l.isConstOne then new r.simp else mul(l.simp, r.simp)
+		#"mul simp (interesting)";
+	top.isConstOne = false;
+}
+
+declare production negate
+top::Expr ::= a::Expr {
+	top.expd = sub(const(0), a) #"negate expd";
+	top.simp = negate(a.simp) #"negate simp (?)";
+	top.isConstOne = false;
+}
+
+declare nonterminal Main_nt
+declare synthesized attribute exitcode :: Expr
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.exitcode = mul(const(1), const(3)).expd.simp #"Entry Point";
+}

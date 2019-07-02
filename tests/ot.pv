@@ -5,19 +5,23 @@ attach attribute u on NT
 attach attribute d on NT
 
 declare nonterminal XNT
+declare synthesized attribute plusOne :: XNT
+attach attribute plusOne on XNT
 
 declare production X
-top::XNT ::= i::int {}
+top::XNT ::= i::int {
+	top.plusOne = X(i+1) #"plusOne impl";
+}
 
 declare production Foo
 top::NT ::= {
-	top.u = top.d;
+	top.u = top.d.plusOne #"u <- d+1";
 }
 
 declare production Top
 top::NT ::= x::NT {
-	top.u=x.u;
-	x.d=X(3);
+	top.u=x.u #"Propogate x.u";
+	x.d=X(3) #"Set x.d";
 }
 
 declare nonterminal Main_nt
@@ -26,5 +30,5 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = Top(Foo()).u;
+	top.exitcode = Top(Foo()).u #"Get Result";
 }
