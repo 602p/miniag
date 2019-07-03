@@ -1,22 +1,26 @@
 declare nonterminal Nat
 declare synthesized attribute asInt :: int
 declare synthesized attribute plusOne :: Nat
+declare synthesized attribute minusOne :: Nat
 attach attribute asInt on Nat
 attach attribute plusOne on Nat
+attach attribute minusOne on Nat
 
 declare production Z
 top::Nat ::= {
 	top.asInt = 0;
 	top.plusOne = S(new top)
-		#"plusOne Base case";
+		#"base";
 }
 
 declare production S
 top::Nat ::= n::Nat {
 	top.asInt = n.asInt + 1;
 	top.plusOne = S(n.plusOne)
-		#"plusOne inductive case";
+		#"inductive";
+	top.minusOne = n #"minus";
 }
+
 declare nonterminal Main_nt
 declare synthesized attribute exitcode :: Nat
 attach attribute exitcode on Main_nt

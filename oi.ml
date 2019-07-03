@@ -3,34 +3,32 @@ open Util
 
 let getoi = function
     | BareNonterminalV (_, _, oi)
-    | DecoratedNonterminalV (_, _, _, oi) ->
+    | DecoratedNonterminalV (_, _, _, _, oi) ->
         Some oi
     | _ -> None
 
 let rec actually_pretty_print = function
     | BareNonterminalV (Production (p, _, _, _), values, _) ->
         p^"("^(stringJoin ", " (List.map actually_pretty_print values))^")"
-    | DecoratedNonterminalV (Production (p, _, _, _), values, _, _) ->
+    | DecoratedNonterminalV (Production (p, _, _, _), values, _, _, _) ->
         p^"*("^(stringJoin ", " (List.map actually_pretty_print values))^")"
     | x -> "^"^([%show:value] x)
 
 let getComment = function (_, _, _, c) -> c
 
 let rec string_of_oi = function
-    | None, _ -> "None"
-    | Some (x, r), s -> "Some -- "^s^"\n -- linked rule: "^
-        (match r with
-            | None -> "None"
-            | Some r -> "#"^(getComment r))
+    | None, _, _, _ -> "None"
+    | Some x, isContractum, redex, label -> "Some "^"\n -- linked rule: "^
+        "#"^label
         ^"\n\n -- linked value: "^(actually_pretty_print x)^(match x with
         | BareNonterminalV(_, _, oi)
-        | DecoratedNonterminalV(_, _, _, oi) ->
+        | DecoratedNonterminalV(_, _, _, _, oi) ->
             "\n -> "^(string_of_oi oi)
         | _ -> "\n -> X")
 
 let rec debug_oi res = match res with
   | BareNonterminalV(_, children, oi)
-  | DecoratedNonterminalV(_, children, _, oi) ->
+  | DecoratedNonterminalV(_, children, _, _, oi) ->
     List.iter (fun x ->
       match (getoi x) with 
         | None -> ()
@@ -69,7 +67,7 @@ let makeGraphViz (thing : value) =
         let name = makeOrGet x in
         let label = match x with
         | BareNonterminalV (Production (p, _, _, _), _, _) -> p
-        | DecoratedNonterminalV (Production (p, _, _, _), _, _, _) -> p^"*"
+        | DecoratedNonterminalV (Production (p, _, _, _), _, _, _, _) -> p^"*"
         | StringV v -> "\\\""^v^"\\\""
         | _ -> [%show: value] x
         in
@@ -78,22 +76,18 @@ let makeGraphViz (thing : value) =
         print_endline "];";
         (match x with
         | BareNonterminalV (Production (_, _, _, childnames), children, oi)
-        | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, oi) ->
+        | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, _, oi) ->
             List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit ch)^" [label=\""^(fst binding)^"\"];")) childnames children;
             (match oi with
-                | Some (x, r), _ -> 
-                    let x = match x with
-                        | DecoratedNonterminalV (_, _, _, (Some(x, _), _)) -> x
-                        | x -> x in
-                    print_string ((name)^" -> "^(emit x)^" [style=dashed ");
-                    (match r with
-                    | Some (_, _, _, c) -> print_string ("label=\""^c^"\"")
-                    | None -> ());
-                    print_endline "];"
-                | None, _ -> ())
+                | Some x, _, _, r -> 
+                    (* let x = match x with
+                        | DecoratedNonterminalV (_, _, _, _, (Some(x, _), _)) -> x
+                        | x -> x in *)
+                    print_endline ((name)^" -> "^(emit x)^" [style=dashed label=\""^r^"\"];")
+                | _ -> ())
         | _ -> ());
         (match x with
-            | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _) ->
+            | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _, _) ->
                 List.iter2 (fun a ai ->
                     match a, (match ai with
                     | InhI (Some (_, lzz)) -> (match !lzz with
