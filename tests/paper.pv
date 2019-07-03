@@ -30,8 +30,8 @@ top::Expr ::= l::Expr r::Expr {
 declare production mul
 top::Expr ::= l::Expr r::Expr {
 	top.expd = mul(l.expd, r.expd) #"mul expd";
-	top.simp = if l.isConstOne then new r.simp else mul(l.simp, r.simp)
-		#"mul simp (interesting)";
+	top.simp = if l.isConstOne then r.simp else mul(l.simp, r.simp)
+		#"!!mul simp!!";
 	top.isConstOne = false;
 }
 
@@ -43,10 +43,16 @@ top::Expr ::= a::Expr {
 }
 
 declare nonterminal Main_nt
+declare synthesized attribute start :: Expr
+declare synthesized attribute expanded :: Expr
 declare synthesized attribute exitcode :: Expr
+attach attribute start on Main_nt
+attach attribute expanded on Main_nt
 attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = mul(const(1), const(3)).expd.simp #"Entry Point";
+	top.start = add(const(2), mul(negate(const(3)), mul(const(1), add(const(4), const(5))))) #"Construct";
+	top.expanded = top.start.expd #"Expand";
+	top.exitcode = top.expanded.simp #"Simplify";
 }

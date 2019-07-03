@@ -46,6 +46,9 @@ let getOriginValue = function
 
 
 let makeGraphViz (thing : value) =
+    let oc = open_out "out/oi.dot" in
+    let print_endline x = output_string oc (x^"\n") in
+    let print_string = output_string oc in
     let names : (value * string) list ref = ref [] in
     let currname = ref 0 in
     let getNewName () =
@@ -99,4 +102,6 @@ let makeGraphViz (thing : value) =
     in
     print_endline "digraph {";
     ignore (emit thing);
-    print_endline "}"
+    print_endline "}";
+    close_out oc;
+    ignore (Sys.command "dot -Tpng out/oi.dot -o out/oi.png")

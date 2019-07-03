@@ -240,10 +240,12 @@ let getEval lang =
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs,
-                match 2 with
+                match 3 with
                 | 1 -> fst origoi, "Constructed*"
-                | 2 -> Some (bare, getRule ctx), "Decorated"
-                | 3 -> ctx, "Decorated"
+                | 2 -> setRule (getRule ctx) (fst origoi), "Decorated"
+                | 3 -> Some (bare, getRule ctx), "Decorated" (* I think this is actually right *)
+                | 4 -> Some (bare, getRule (fst origoi)), "Decorated" (* Pretty sure this is just wrong *)
+                | 5 -> ctx, "Decorated"
             )
         | _ -> failwith "bad args to makeDecNT"
 
