@@ -30,15 +30,13 @@ top::Expr ::= l::Expr r::Expr {
 declare production mul
 top::Expr ::= l::Expr r::Expr {
 	top.expd = mul(l.expd, r.expd) #"mul expd";
-	top.simp = if l.isConstOne then r.simp else mul(l.simp, r.simp)
-		#"!!mul simp!!";
+	top.simp = if l.isConstOne then r.simp else mul(l.simp, r.simp) #"mul simp";
 	top.isConstOne = false;
 }
 
 declare production negate
 top::Expr ::= a::Expr {
 	top.expd = sub(const(0), a) #"negate expd";
-	top.simp = negate(a.simp) #"negate simp (?)";
 	top.isConstOne = false;
 }
 
@@ -52,7 +50,7 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.start = add(const(2), mul(negate(const(3)), mul(const(1), add(const(4), const(5))))) #"Construct";
+	top.start = add(const(2), mul(negate(const(3)), mul(const(1), add(const(4), const(5))))) #"C";
 	top.expanded = top.start.expd #"Expand";
 	top.exitcode = top.expanded.simp #"Simplify";
 }

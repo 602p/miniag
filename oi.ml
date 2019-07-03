@@ -75,7 +75,11 @@ let makeGraphViz (thing : value) =
         | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, oi) ->
             List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit ch)^" [label=\""^(fst binding)^"\"];")) childnames children;
             (match oi with
-                | Some (x, r), _ -> print_string ((name)^" -> "^(emit x)^" [style=dashed ");
+                | Some (x, r), _ -> 
+                    let x = match x with
+                        | DecoratedNonterminalV (_, _, _, (Some(x, _), _)) -> x
+                        | x -> x in
+                    print_string ((name)^" -> "^(emit x)^" [style=dashed ");
                     (match r with
                     | Some (_, _, _, c) -> print_string ("label=\""^c^"\"")
                     | None -> ());

@@ -244,7 +244,7 @@ let getEval lang =
                 | 1 -> fst origoi, "Constructed*"
                 | 2 -> setRule (getRule ctx) (fst origoi), "Decorated"
                 | 3 -> Some (bare, getRule ctx), "Decorated" (* I think this is actually right *)
-                | 4 -> Some (bare, getRule (fst origoi)), "Decorated" (* Pretty sure this is just wrong *)
+                | 4 -> Some (bare, getRule (fst origoi)), "Decorated" (* Same as 3? *)
                 | 5 -> ctx, "Decorated"
             )
         | _ -> failwith "bad args to makeDecNT"
