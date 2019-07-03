@@ -240,7 +240,7 @@ let getEval lang =
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
             ) !attrmap in DecoratedNonterminalV (prod, children, attrs,
-                match 3 with
+                match 4 with
                 | 1 -> fst origoi, "Constructed*"
                 | 2 -> setRule (getRule ctx) (fst origoi), "Decorated"
                 | 3 -> Some (bare, getRule ctx), "Decorated" (* I think this is actually right *)
@@ -292,6 +292,9 @@ let getEval lang =
         match x with
             | BareNonterminalV (p, v, _) as h -> BareNonterminalV (p, List.map dup' v, (Some (h, r), "New"))
             | DecoratedNonterminalV (p, v, _, _) as h -> BareNonterminalV (p, List.map dup' v, (Some (h, r), "New"))
+            | IntV x -> IntV x
+            | StringV x -> StringV x
+            | BoolV x -> BoolV x
             | x -> x
 
     in evalExpr None []

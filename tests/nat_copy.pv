@@ -36,6 +36,6 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = SA(SA(ZA())).asNatB.asNatA.asNatB
+	top.exitcode = SA(SA(ZA())).asNatB.asNatA
 		#"Entry";
 }

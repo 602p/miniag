@@ -1,5 +1,0 @@
-digraph {
-n0 [label="SB" color=red];
-n1 [label="SB" ];
-n2 [label="ZB" ];
-n3 [label="ZA" ];

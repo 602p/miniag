@@ -44,6 +44,10 @@ let getOriginValue = function
     | Some (x, _), _ -> Some x
     | None, _ -> None
 
+let rec assoc_opt_id n = function
+    | [] -> None
+    | (x,v)::_ when x==n -> Some v
+    | _::xs -> assoc_opt_id n xs
 
 let makeGraphViz (thing : value) =
     let oc = open_out "out/oi.dot" in
@@ -55,16 +59,18 @@ let makeGraphViz (thing : value) =
         let curr = !currname in
         currname := curr + 1;
         "n"^(string_of_int curr) in
-    let makeOrGet v = match List.assoc_opt v !names with
+    let makeOrGet v = match assoc_opt_id v !names with
         | None -> let newname = getNewName () in
             names := (v, newname)::!names; newname
         | Some x -> x in
-    let isDone x = match List.assoc_opt x (!names) with Some _ -> true | None -> false in
+    let isDone x = let f = assoc_opt_id x (!names) in
+        match f with Some _ -> true | None -> false in
     let rec emit (x : value) : string = if isDone x then makeOrGet x else
         let name = makeOrGet x in
         let label = match x with
         | BareNonterminalV (Production (p, _, _, _), _, _) -> p
         | DecoratedNonterminalV (Production (p, _, _, _), _, _, _) -> p^"*"
+        | StringV v -> "\\\""^v^"\\\""
         | _ -> [%show: value] x
         in
         print_string (name^" [label=\""^label^"\" ");

@@ -14,16 +14,18 @@ let parse_file filename =
     let mainprod = List.find (fun x -> match x with Production(n, _, _, _) -> n="Main") prods in
     let returncode = List.find (fun x -> match x with Attribute(n, _, _) -> n="exitcode") attrs in
     print_endline "Invoke...";
-    let res = (getEval lang) (GetAttr (Decorate (Construct (mainprod, []), []), returncode)) in
+    let eval = getEval lang in
+    let main = eval (Decorate (Construct (mainprod, []), [])) in
+    let res = eval (GetAttr ((Const main), returncode)) in
     print_endline "\n\n";
     print_endline (actually_pretty_print res);
-    (match res with
+    (* (match res with
       | BareNonterminalV(_, _, oi)
       | DecoratedNonterminalV(_, _, _, oi) ->
         print_endline "\n\nToplevel OI:";
         print_endline (string_of_oi oi);
         debug_oi res
-      | _ -> ());
+      | _ -> ()); *)
     print_endline "\n\n\n";
     makeGraphViz res
 

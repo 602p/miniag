@@ -39,12 +39,12 @@ declare production Add
 top::Expr ::= l::Expr r::Expr {
 	l.env = top.env;
 	r.env = top.env;
-	top.val = l.val + r.val;
+	top.val = l.val + r.val #"Impl Add";
 }
 
 declare production Assign
 top::Stmt ::= name::string value::Expr {
-	top.envUp = ConsAssocList(name, value.val, top.envDown);
+	top.envUp = ConsAssocList(name, value.val, top.envDown) #"Assign";
 	value.env = top.envDown;
 }
 
@@ -58,12 +58,14 @@ top::Stmt ::= fst::Stmt snd::Stmt {
 declare nonterminal Main_nt
 declare synthesized attribute exitcode :: int
 attach attribute exitcode on Main_nt
+declare synthesized attribute code :: Stmt
+attach attribute code on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = decorate (decorate
+	top.code = 
 		Seq(
 			Assign("x", Const(1)),
-			Assign("x", Add(Name("x"), Const(1))))
-	{envDown = NilAssocList()}.envUp) {lookingFor="x"}.result;
+			Assign("x", Add(Name("x"), Const(1)))) #"Build";
+	top.exitcode = decorate top.code {envDown = NilAssocList()}.envUp #"Main";
 }
