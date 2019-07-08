@@ -38,10 +38,6 @@ let rec debug_oi res = match res with
           debug_oi x) (children)
   | _ -> ()
 
-let getOriginValue = function
-    | Some (x, _), _ -> Some x
-    | None, _ -> None
-
 let rec assoc_opt_id n = function
     | [] -> None
     | (x,v)::_ when x==n -> Some v
@@ -71,18 +67,28 @@ let makeGraphViz (thing : value) =
         | StringV v -> "\\\""^v^"\\\""
         | _ -> [%show: value] x
         in
-        print_string (name^" [label=\""^label^"\" ");
-        if x == thing then print_string "color=red";
-        print_endline "];";
+        let isContractum = ref false in
+        let redex = ref None in
         (match x with
         | BareNonterminalV (Production (_, _, _, childnames), children, oi)
         | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, _, oi) ->
             List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit ch)^" [label=\""^(fst binding)^"\"];")) childnames children;
             (match oi with
-                | Some x, _, _, r -> 
-                    print_endline ((name)^" -> "^(emit x)^" [style=dashed label=\""^r^"\"];")
+                | Some x, isContractum', redex', r -> 
+                    (if containsRe ([%show: value] x) "Main" then () else 
+                    (print_endline ((name)^" -> "^(emit x)^" [style=dashed label=\""^r^"\"");
+                    isContractum := isContractum';
+                    redex := redex';
+                    print_endline "];"))
                 | _ -> ())
         | _ -> ());
+        print_string (name^" [label=\""^label^"\" ");
+        if x == thing then print_string " color=red ";
+        if !isContractum then print_string " fillcolor=lightblue style=filled ";
+        print_endline "];";
+        (match !redex with
+            | None -> ()
+            | Some r -> print_endline ((emit x) ^ " -> " ^ (emit r) ^ "[style=dotted label=redex];"));
         (match x with
             | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _, _) ->
                 List.iter2 (fun a ai ->

@@ -51,3 +51,12 @@ let rec filterMap f = function
 let splitPairList l = (List.map fst l, List.map snd l)
 let fst2 (a, b, _) = (a, b)
 let snd2 (_, b, c) = (b, c)
+
+let listAll p l = List.fold_left (&&) true (List.map p l)
+
+
+let containsRe s1 s2 =
+    let re = Str.regexp_string s2
+    in
+        try ignore (Str.search_forward re s1 0); true
+        with Not_found -> false

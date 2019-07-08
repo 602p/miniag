@@ -3,4 +3,5 @@
 (executable
  (name main)
  (preprocess
-  (pps ppx_deriving.std)))
+  (pps ppx_deriving.std))
+ (libraries str))
