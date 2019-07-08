@@ -103,13 +103,13 @@ let makeGraphViz (root : value) =
         append objectsEmitted x;
         let pushTodo x = (append objectsToEmit x; append seenObjects x) in
         emit_string (name ^ "[label=\"" ^ (nodebody_pp x) ^ "\" ");
-        (if x == root then emit_string " color=blue ");
-        (if isAnswer then emit_string " fillcolor=\"#bbbbff\" style=filled ");
+        (if x == root then emit_string " color=blue penwidth=3 ");
+        (if isAnswer then emit_string " fillcolor=\"#bbffbb\" style=filled ");
         (if hasoi x then
             let (origin, isContractum, redex, originLabel) = assertSome (getoi x) in
             (match origin with
             | Some x ->
-                if isMain x then emit_string " fillcolor=\"#ffbbbb\" style=filled "
+                if isMain x then emit_string " fillcolor=\"#bbbbff\" style=filled "
                 else (
                     (match redex with
                     | Some (r, _) -> pushTodo r
@@ -173,7 +173,7 @@ let makeGraphViz (root : value) =
                 | None -> ());
             (match getContractum (Some x) with
                 | Some x -> if not (isMain x) then
-                    emit_endline (name ^ "->" ^ (makeOrGet x) ^ "[style=dotted penwidth=3 ];")
+                    emit_endline (name ^ "->" ^ (makeOrGet x) ^ "[style=dotted penwidth=6 arrowsize=0.25 ];")
                 | None -> ())) in
 
     objectsToEmit := !seenObjects;
