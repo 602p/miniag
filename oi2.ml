@@ -48,9 +48,13 @@ let rec assoc_opt_id n = function
     | (x,v)::_ when x==n -> Some v
     | _::xs -> assoc_opt_id n xs
 
+let rec mem_id n = function
+    | [] -> false
+    | x::xs -> x==n || mem_id n xs
+
 let rec backslash l1 l2 = match l1 with
     | [] -> []
-    | x::xs -> if List.mem x l2 then backslash xs l2 else x::(backslash xs l2)
+    | x::xs -> if mem_id x l2 then backslash xs l2 else x::(backslash xs l2)
 
 let rec findAllChildren = function
     | BareNonterminalV(_, v, _) as x -> v @ flatMap findAllChildren v
@@ -60,11 +64,11 @@ let rec findParent (pool : value list) (child : value) : value option =
     let rec findParentOne child obj =
         match obj with
         | BareNonterminalV(_, v, _) as x ->
-            if List.mem child v then Some x else applyFirstOpt (findParentOne child) v
+            if mem_id child v then Some x else applyFirstOpt (findParentOne child) v
         | _ -> None in
     applyFirstOpt (findParentOne child) pool
 
-let isOwnedByAny xs x = listAny (fun l -> x!=l && List.mem x (findAllChildren l)) xs
+let isOwnedByAny xs x = listAny (fun l -> x!=l && mem_id x (findAllChildren l)) xs
 
 let append x v = x := v::!x
 
@@ -115,11 +119,12 @@ let makeGraphViz (root : value) =
             | _ -> ()));
         emit_endline "];";
         (if not (willBeOneNode x) then
-            (emit_endline "subgraph {\n";
+            (emit_endline ("subgraph children"^(getNewName ())^"{\n");
             (match x with
             | BareNonterminalV(Production(_, _, _, childnames), children, _) ->
                 List.iter2 (fun binding ch ->
                     emitObjectWithoutLinks isAnswer ch;
+                    append seenObjects ch;
                     emit_endline (name^" -> "^(makeOrGet ch)
                         ^" [arrowhead=none taillabel=\""^(fst binding)^"\"];")) childnames children
             | _ -> ());
@@ -127,8 +132,9 @@ let makeGraphViz (root : value) =
 
     emit_endline "digraph {";
     emit_endline "node [fontname = \"monospace\"];";
-    emit_endline "compound=true;";
-    emit_endline "rankdir=TB;";
+    emit_endline "graph [compound=true";
+    emit_endline "rankdir=TB";
+    emit_endline "];";
     emit_endline "subgraph { ";
     emit_endline "subgraph clusterROOT{";
     emitObjectWithoutLinks true root;
@@ -154,6 +160,7 @@ let makeGraphViz (root : value) =
 
     let emitOriginInfo x =
         let name = makeOrGet x in
+        print_endline ((actually_pretty_print x)^" -- "^(string_of_bool (hasoi x)));
         if hasoi x then 
             (let (origin, isContractum, redex, originLabel) = assertSome (getoi x) in
             (match origin with

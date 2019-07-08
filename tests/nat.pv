@@ -27,5 +27,5 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = S(S(S(Z()))).minusOne #"Entry";
+	top.exitcode = S(S(S(Z()))).plusOne.plusOne #"Entry";
 }
