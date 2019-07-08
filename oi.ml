@@ -3,16 +3,35 @@ open Util
 
 let getoi = function
     | BareNonterminalV (_, _, oi)
-    | DecoratedNonterminalV (_, _, _, _, oi) ->
+    | DecoratedNonterminalV (_, _, _, BareNonterminalV(_, _, oi)) ->
         Some oi
     | _ -> None
 
 let rec actually_pretty_print = function
     | BareNonterminalV (Production (p, _, _, _), values, _) ->
         p^"("^(stringJoin ", " (List.map actually_pretty_print values))^")"
-    | DecoratedNonterminalV (Production (p, _, _, _), values, _, _, _) ->
+    | DecoratedNonterminalV (Production (p, _, _, _), values, _, _) ->
         p^"*("^(stringJoin ", " (List.map actually_pretty_print values))^")"
+    | IntV x -> string_of_int x
+    | StringV x -> "\\\""^x^"\\\""
     | x -> "^"^([%show:value] x)
+
+let is_primitive = function
+    | StringV _ -> true
+    | IntV _ -> true
+    | BoolV _ -> true
+    | UnitV -> true
+    | _ -> false
+
+let heuristic_pp = function
+    | BareNonterminalV (Production (p, _, _, _), values, _) ->
+        if values = [] then
+            p
+        else if listAll is_primitive values then 
+            p^"("^(stringJoin ", " (List.map actually_pretty_print values))^")"
+        else
+            p
+    | x -> actually_pretty_print x
 
 let getComment = function (_, _, _, c) -> c
 
@@ -21,14 +40,15 @@ let rec string_of_oi = function
     | Some x, isContractum, redex, label -> "Some "^"\n -- linked rule: "^
         "#"^label
         ^"\n\n -- linked value: "^(actually_pretty_print x)^(match x with
-        | BareNonterminalV(_, _, oi)
-        | DecoratedNonterminalV(_, _, _, _, oi) ->
-            "\n -> "^(string_of_oi oi)
+        | BareNonterminalV(_, _, _)
+        | DecoratedNonterminalV(_, _, _, _) as v ->
+            "\n -> "^(string_of_oi (assertSome (getoi v)))
         | _ -> "\n -> X")
 
 let rec debug_oi res = match res with
-  | BareNonterminalV(_, children, oi)
-  | DecoratedNonterminalV(_, children, _, _, oi) ->
+  | BareNonterminalV(_, children, _)
+  | DecoratedNonterminalV(_, children, _, _) ->
+    let oi = assertSome (getoi res) in
     List.iter (fun x ->
       match (getoi x) with 
         | None -> ()
@@ -59,24 +79,31 @@ let makeGraphViz (thing : value) =
         | Some x -> x in
     let isDone x = let f = assoc_opt_id x (!names) in
         match f with Some _ -> true | None -> false in
-    let rec emit (x : value) : string = if isDone x then makeOrGet x else
-        let name = makeOrGet x in
-        let label = match x with
-        | BareNonterminalV (Production (p, _, _, _), _, _) -> p
-        | DecoratedNonterminalV (Production (p, _, _, _), _, _, _, _) -> p^"*"
-        | StringV v -> "\\\""^v^"\\\""
-        | _ -> [%show: value] x
-        in
-        let isContractum = ref false in
+    let rec emit (parentRedex : value option) (parentContractum : value option) (x : value) : string =
+        let emit' = emit None None in
         let redex = ref None in
+        (if isDone x then () else
+        let name = makeOrGet x in
+        let label = heuristic_pp x in
+        let isContractum = ref false in
+        let isConstructedInMain = ref false in
         (match x with
-        | BareNonterminalV (Production (_, _, _, childnames), children, oi)
-        | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, _, oi) ->
-            List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit ch)^" [label=\""^(fst binding)^"\"];")) childnames children;
+        | BareNonterminalV (Production (_, _, _, childnames), children, _)
+        | DecoratedNonterminalV (Production (_, _, _, childnames), children, _, _) ->
+            let oi = assertSome (getoi x) in
+            let myredex = match oi with | _, _, r, _ -> r in
+            let mycontractum = match myredex with
+                | Some r ->
+                    if not (containsRe ([%show: value] r) "Main") then
+                        (print_endline (name ^" -> " ^ name ^"[style=dotted penwidth=2];"); Some x)
+                    else None
+                | None -> None in
+            (if listAll is_primitive children then () else 
+            List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit myredex mycontractum ch)^" [taillabel=\""^(fst binding)^"\"];")) childnames children);
             (match oi with
                 | Some x, isContractum', redex', r -> 
-                    (if containsRe ([%show: value] x) "Main" then () else 
-                    (print_endline ((name)^" -> "^(emit x)^" [style=dashed label=\""^r^"\"");
+                    (if containsRe ([%show: value] x) "Main" then isConstructedInMain := true else 
+                    (print_endline ((name)^" -> "^(emit' x)^" [style=dashed label=\""^r^"\"");
                     isContractum := isContractum';
                     redex := redex';
                     print_endline "];"))
@@ -85,12 +112,21 @@ let makeGraphViz (thing : value) =
         print_string (name^" [label=\""^label^"\" ");
         if x == thing then print_string " color=red ";
         if !isContractum then print_string " fillcolor=lightblue style=filled ";
+        if !isConstructedInMain then print_string " fillcolor=\"#aaffaa\" style=filled ";
         print_endline "];";
-        (match !redex with
-            | None -> ()
-            | Some r -> print_endline ((emit x) ^ " -> " ^ (emit r) ^ "[style=dotted label=redex];"));
-        (match x with
-            | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _, _) ->
+        );
+        (match !redex, parentRedex with
+            | Some r, _
+            | _, Some r ->
+                if not (containsRe ([%show: value] r) "Main") then
+                    print_endline ((emit' x) ^ " -> " ^ (emit' r) ^ "[style=dotted];")
+            | _ -> ());
+    
+        (match parentContractum with
+            | Some c -> print_endline ((emit' x) ^ " -> " ^ (emit' c) ^ "[style=dotted penwidth=2];")
+            | _ -> ());
+        (* (match x with
+            | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _) ->
                 List.iter2 (fun a ai ->
                     match a, (match ai with
                     | InhI (Some (_, lzz)) -> (match !lzz with
@@ -101,14 +137,14 @@ let makeGraphViz (thing : value) =
                         | Forced (v, _) -> Some v
                         | _ -> None)) with
                     | Attribute (n, _, _), Some v -> 
-                        print_endline ((emit x)^" -> "^(emit v)^" [style=dotted label=\""^n^"\"];")
+                        print_endline ((emit' x)^" -> "^(emit' v)^" [style=dotted label=\""^n^"\"];")
                     | _, None -> ()
                 ) !attrs attrimpls
-            | _ -> ());
-        name
+            | _ -> ()); *)
+        makeOrGet x
     in
     print_endline "digraph {";
-    ignore (emit thing);
+    ignore (emit None None thing);
     print_endline "}";
     close_out oc;
     ignore (Sys.command "dot -Tpng out/oi.dot -o out/oi.png")

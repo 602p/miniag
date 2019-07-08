@@ -9,7 +9,7 @@ attach attribute minusOne on Nat
 declare production Z
 top::Nat ::= {
 	top.asInt = 0;
-	top.plusOne = S(new top)
+	top.plusOne = S(Z())
 		#"base";
 }
 

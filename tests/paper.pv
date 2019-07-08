@@ -8,28 +8,28 @@ attach attribute isConstOne on Expr
 
 declare production const
 top::Expr ::= i::int {
-	top.expd = const(i) #"const expd";
-	top.simp = const(i) #"const simp";
+	top.expd = const(i) #"E";
+	top.simp = const(i) #"S";
 	top.isConstOne = i == 1;
 }
 
 declare production add
 top::Expr ::= l::Expr r::Expr {
-	top.expd = add(l.expd, r.expd) #"add expd";
-	top.simp = add(l.simp, r.simp) #"add simp";
+	top.expd = add(l.expd, r.expd) #"E";
+	top.simp = add(l.simp, r.simp) #"S";
 	top.isConstOne = false;
 }
 
 declare production sub
 top::Expr ::= l::Expr r::Expr {
-	top.expd = sub(l.expd, r.expd) #"sub expd";
-	top.simp = sub(l.simp, r.simp) #"sub simp";
+	top.expd = sub(l.expd, r.expd) #"E";
+	top.simp = sub(l.simp, r.simp) #"S";
 	top.isConstOne = false;
 }
 
 declare production mul
 top::Expr ::= l::Expr r::Expr {
-	top.expd = mul(l.expd, r.expd) #"mul expd";
+	top.expd = mul(l.expd, r.expd) #"E";
 	top.simp = if l.isConstOne then r.simp else mul(l.simp, r.simp) #"mul simp";
 	top.isConstOne = false;
 }

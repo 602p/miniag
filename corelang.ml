@@ -26,7 +26,7 @@ and value =
     | BareNonterminalV of (production [@printer fun fmt -> function Production (n, (b, _, _), _, _) -> fprintf fmt "<P:%s (%s)>" n b]) *
         value list * origininfo
     | DecoratedNonterminalV of (production [@printer fun fmt -> function Production (n, (b, _, _), _, _) -> fprintf fmt "<P:%s (%s)>" n b]) *
-        value list * attrinst list * value * origininfo
+        value list * attrinst list * value
     | TerminalV of terminaltype * string
 [@@ deriving show { with_path = false }]
 
@@ -115,18 +115,18 @@ and origininfo =
 let nameOfAttr = function Attribute (n, _, _) -> n
 let prodOfNt = function
     | BareNonterminalV (p, _, _) -> p
-    | DecoratedNonterminalV (p, _, _, _, _) -> p
+    | DecoratedNonterminalV (p, _, _, _) -> p
     | _ -> failwith "prodOfNt not of NT"
 
 let getChildByName v n = match v with
     | BareNonterminalV (Production (_, _, _, childmap), children, _) ->
         List.nth children (findNthP childmap (fun x -> (fst x) = n))
-    | DecoratedNonterminalV (Production (_, _, _, childmap), children, _, _, _) ->
+    | DecoratedNonterminalV (Production (_, _, _, childmap), children, _, _) ->
         List.nth children (findNthP childmap (fun x -> (fst x) = n))
     | _ -> failwith "getChildByName not of *NonterminalV"
 
 let getAttrSlotByName v n = match v with
-    | DecoratedNonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs, _, _) ->
+    | DecoratedNonterminalV (Production (_, (_, _, attrmap), _, _), _, attrs, _) ->
         List.nth attrs (findNthI !attrmap n)
     | _ -> failwith ("getAttrSlotByName not of DecoratedNonterminalV: "^([%show:value] v))
 
@@ -156,12 +156,20 @@ let typeOfValue : value -> typerep = function
     | BoolV _ -> BoolT
     | UnitV -> UnitT
     | BareNonterminalV (Production(_, ty, _, _), _, _) -> BareNonterminalT ty
-    | DecoratedNonterminalV (Production(_, ty, _, _), _, _, _, _) -> DecoratedNonterminalT ty
+    | DecoratedNonterminalV (Production(_, ty, _, _), _, _, _) -> DecoratedNonterminalT ty
     | TerminalV (ty, _) -> TerminalT ty
 
 let extractOrigin = function
-    | Some (DecoratedNonterminalV (_, _, _, v, _), _, _) -> Some v
+    | Some (DecoratedNonterminalV (_, _, _, v), _, _) -> Some v
     | Some (x, _, _) -> Some x
+    | None -> None
+
+let shuckValue = function
+    | DecoratedNonterminalV (_, _, _, v) -> v
+    | v -> v
+
+let shuckValueOpt = function
+    | Some x -> Some (shuckValue x)
     | None -> None
 
 let getLabel = function
@@ -228,7 +236,7 @@ let getEval lang =
 
         | Self -> getTree (assertSome ctx)
         | Child x -> (match getTree (assertSome ctx) with
-            | DecoratedNonterminalV (_, children, _, _, _) -> List.nth children x
+            | DecoratedNonterminalV (_, children, _, _) -> List.nth children x
             | BareNonterminalV (_, children, _) -> List.nth children x
             | _ -> failwith "CTX not NT?")
 
@@ -251,14 +259,16 @@ let getEval lang =
             let er = getEr ctx in
             print_endline (([%show:expr] expr)^": "^(string_of_bool sameProd)^" "^(string_of_bool childrenOk)^" "^(string_of_bool er));
             let isContractum = not (sameProd && childrenOk && er) in
-            BareNonterminalV (prod, args, (extractOrigin ctx, isContractum, None, getLabel ctx)))
+            let redex = if (not (sameProd && childrenOk)) && (getEr ctx) then (shuckValueOpt (getTreeOpt ctx)) else None in
+            BareNonterminalV (prod, args, (extractOrigin ctx, isContractum, redex, getLabel ctx)))
 
         | GetAttr (nt, attr) ->
             let v = (match evalExpr'_compound env nt with
                 | DecoratedNonterminalV _ as v -> v
                 | BareNonterminalV _ as v -> doAutoDec ctx env v
                 | _ -> failwith "bad actual type to GetAttr") in
-            copy (getTreeOpt ctx) (resolveAttr v ctx attr)
+            let redex = if getEr ctx then (shuckValueOpt (getTreeOpt ctx)) else None in
+            copy redex (resolveAttr v ctx attr)
 
         | Decorate (e, b) ->
             makeDecNT ctx (evalExpr'_compound env e) env (List.map (fun x -> fst x, (snd x, None)) b)
@@ -277,8 +287,7 @@ let getEval lang =
                         | (attr', prod', SynImpl e, _) as rule when (attrEq attr' attr) && (prodEq prod' prod) ->
                             Some (SynI (makeLzExp env (Some rule) e))
                         | _ -> None) (InhI None) rules
-            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, nt,
-                (None, getIsContractum origoi, getRedex origoi, "DECORATED DUMMY"))
+            ) !attrmap in DecoratedNonterminalV (prod, children, attrs, nt)
         | _ -> failwith "bad args to makeDecNT"
 
     and makeLzExp env r expr =
@@ -305,7 +314,7 @@ let getEval lang =
 
     and doAutoDec ctx env v = 
         match ctx with
-        | Some (DecoratedNonterminalV (_, ctxchildren, _, _, _) as ctxv, _, _) ->
+        | Some (DecoratedNonterminalV (_, ctxchildren, _, _) as ctxv, _, _) ->
             let validrules = filterMap (fun rule -> match rule with
                 | (attr, ruleprod, InhImpl (childno, expr), _) when (prodEq ruleprod (prodOfNt ctxv) && 
                     (List.nth ctxchildren childno) == v) -> Some (attr, (expr, Some rule))
@@ -321,16 +330,15 @@ let getEval lang =
         match x with
             | BareNonterminalV (p, v, origoi) as h ->
                 BareNonterminalV (p, List.map dup' v, (Some h, getIsContractum origoi, getRedex origoi, getLabel ctx))
-            | DecoratedNonterminalV (p, v, _, ro, origoi) as h ->
-                BareNonterminalV (p, List.map dup' v, (Some ro, getIsContractum origoi, getRedex origoi, getLabel ctx))
+            | DecoratedNonterminalV (p, v, _, BareNonterminalV(_, _, oi)) as h ->
+                BareNonterminalV (p, List.map dup' v, oi)
             | x -> x
 
     and copy (redex : value option) (tree : value) : value = 
         match tree with
-            | BareNonterminalV (p, v, (o, n, r, l)) ->
-                BareNonterminalV (p, List.map (copy None) v, (o, n, (if r!=None then redex else None), l))
-            | DecoratedNonterminalV (p, v, _, ro, (o, n, r, l)) ->
-                BareNonterminalV (p, List.map (copy None) v, (Some ro, n, (if r!=None then redex else None), l))
+            | BareNonterminalV (p, v, (o, n, r, l))
+            | DecoratedNonterminalV (p, v, _, BareNonterminalV(_, _, (o, n, r, l))) ->
+                BareNonterminalV (p, List.map (copy None) v, (o, n, (if redex!=None then redex else r), l))
             | x -> x
 
     in evalExpr None []
