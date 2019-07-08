@@ -108,7 +108,7 @@ and evalctx = (value * attrrule option * bool) option
 
 and origininfo =
     value option * bool * value option * string
-[@printer fun fmt _ -> fprintf fmt "<OI>"]
+(* [@printer fun fmt _ -> fprintf fmt "<OI>"] *)
 [@@ deriving show { with_path = false }]
 
 
@@ -176,8 +176,14 @@ let getLabel = function
     | Some (_, Some (_, _, _, l), _) -> l
     | _ -> ""
 
+let isMain = function
+    | BareNonterminalV (Production(p, _, _, _), _, _)
+    | DecoratedNonterminalV (Production(p, _, _, _), _, _, _) ->
+        p="Main"
+    | _ -> false
+
 let getEr = function
-    | Some (_, _, er) -> er
+    | Some (o, _, er) -> not (isMain o) && er
     | _ -> true
 
 let getIsContractum = function (_, c, _, _) -> c
@@ -274,7 +280,16 @@ let getEval lang =
             makeDecNT ctx (evalExpr'_compound env e) env (List.map (fun x -> fst x, (snd x, None)) b)
 
         | New x ->
-            duplicate ctx (evalExpr'_compound env x)
+            let redex = if getEr ctx then (shuckValueOpt (getTreeOpt ctx)) else None in
+            let arg = (evalExpr'_compound env x) in
+            print_endline "\n\nNEW\n\nCTX=";
+            print_endline ([%show: value option] redex);
+            print_endline "\n\nARG=";
+            print_endline ([%show: value] arg);
+            let r = duplicate redex (getLabel ctx) arg in
+            print_endline ("\n\nPOSTNEW\n\n"^([%show:value] r));
+            print_endline ("\nHASH="^(string_of_int (Hashtbl.hash r)));
+            r
         ) in 
             (* print_endline ">>"; *)
             r
@@ -307,7 +322,7 @@ let getEval lang =
             lzexp := Forced (res, r); res
 
     and resolveAttr v ctx attr = match (getAttrSlotByName v attr), ctx with
-        | InhI (Some(ctx, f)), _ -> forceLzExp ctx f
+        | InhI (Some(ctx, f)), _ -> forceLzExp (setEr true ctx) f
         | SynI f, Some (_, r, _) -> forceLzExp (Some (v, r, true)) f
         | SynI f, None -> forceLzExp (Some (v, None, true)) f
         | InhI (None), _ -> failwith "inh attribute not provided"
@@ -324,14 +339,11 @@ let getEval lang =
                 makeDecNT ctx v env validrules
         | _ -> failwith "doAutoDec with no ctx"
 
-    and duplicate ctx x = 
-        let r = getRule ctx in
-        let dup' = duplicate ctx in
-        match x with
-            | BareNonterminalV (p, v, origoi) as h ->
-                BareNonterminalV (p, List.map dup' v, (Some h, getIsContractum origoi, getRedex origoi, getLabel ctx))
-            | DecoratedNonterminalV (p, v, _, BareNonterminalV(_, _, oi)) as h ->
-                BareNonterminalV (p, List.map dup' v, oi)
+    and duplicate redex rule x = 
+        match shuckValue x with
+            | BareNonterminalV (p, v, _) as h ->
+                BareNonterminalV (p, List.map (duplicate None rule) v,
+                    (Some h, false, redex, rule))
             | x -> x
 
     and copy (redex : value option) (tree : value) : value = 

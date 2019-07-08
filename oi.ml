@@ -37,7 +37,12 @@ let getComment = function (_, _, _, c) -> c
 
 let rec string_of_oi = function
     | None, _, _, _ -> "None"
-    | Some x, isContractum, redex, label -> "Some "^"\n -- linked rule: "^
+    | Some x, isContractum, redex, label -> "Some "
+        ^"isContractum = "^(string_of_bool isContractum)
+        ^"\n -- redex: "^ (match redex with
+            | Some r -> "Some "^(actually_pretty_print r)
+            | _ -> "None")
+        ^"\n -- linked rule: "^
         "#"^label
         ^"\n\n -- linked value: "^(actually_pretty_print x)^(match x with
         | BareNonterminalV(_, _, _)
@@ -64,6 +69,9 @@ let rec assoc_opt_id n = function
     | _::xs -> assoc_opt_id n xs
 
 let makeGraphViz (thing : value) =
+    print_endline ("\n\nEMITROOT\n"^([%show:value] thing)); 
+    print_endline ("\nHASH="^(string_of_int (Hashtbl.hash thing)));
+    print_endline (string_of_oi (assertSome (getoi thing))); debug_oi thing;
     let oc = open_out "out/oi.dot" in
     let print_endline x = output_string oc (x^"\n") in
     let print_string = output_string oc in
@@ -82,6 +90,7 @@ let makeGraphViz (thing : value) =
     let rec emit (parentRedex : value option) (parentContractum : value option) (x : value) : string =
         let emit' = emit None None in
         let redex = ref None in
+        let drewContractum = ref false in
         (if isDone x then () else
         let name = makeOrGet x in
         let label = heuristic_pp x in
@@ -94,15 +103,18 @@ let makeGraphViz (thing : value) =
             let myredex = match oi with | _, _, r, _ -> r in
             let mycontractum = match myredex with
                 | Some r ->
-                    if not (containsRe ([%show: value] r) "Main") then
-                        (print_endline (name ^" -> " ^ name ^"[style=dotted penwidth=2];"); Some x)
-                    else None
-                | None -> None in
+                    if not (isMain r) then
+                        (print_endline (name ^" -> " ^ name ^"[style=dotted penwidth=3];"); drewContractum := true; Some x)
+                    else parentContractum
+                | None -> parentContractum in
+            let myredex = match myredex with
+                | None -> parentRedex
+                | x -> x in
             (if listAll is_primitive children then () else 
             List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit myredex mycontractum ch)^" [taillabel=\""^(fst binding)^"\"];")) childnames children);
             (match oi with
                 | Some x, isContractum', redex', r -> 
-                    (if containsRe ([%show: value] x) "Main" then isConstructedInMain := true else 
+                    (if isMain x then isConstructedInMain := true else 
                     (print_endline ((name)^" -> "^(emit' x)^" [style=dashed label=\""^r^"\"");
                     isContractum := isContractum';
                     redex := redex';
@@ -118,12 +130,14 @@ let makeGraphViz (thing : value) =
         (match !redex, parentRedex with
             | Some r, _
             | _, Some r ->
-                if not (containsRe ([%show: value] r) "Main") then
+                if not (isMain r) then
                     print_endline ((emit' x) ^ " -> " ^ (emit' r) ^ "[style=dotted];")
+            | Some _, Some _ -> failwith "2redex!?"
             | _ -> ());
     
+        if not !drewContractum then (* Q-MULTIPLE-CONTRACTUMS? *)
         (match parentContractum with
-            | Some c -> print_endline ((emit' x) ^ " -> " ^ (emit' c) ^ "[style=dotted penwidth=2];")
+            | Some c -> print_endline ((emit' x) ^ " -> " ^ (emit' c) ^ "[style=dotted penwidth=3];")
             | _ -> ());
         (* (match x with
             | DecoratedNonterminalV (Production (_, (_, _, attrs), _, _), _, attrimpls, _) ->
