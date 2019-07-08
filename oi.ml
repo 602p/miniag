@@ -40,7 +40,7 @@ let rec string_of_oi = function
     | Some x, isContractum, redex, label -> "Some "
         ^"isContractum = "^(string_of_bool isContractum)
         ^"\n -- redex: "^ (match redex with
-            | Some r -> "Some "^(actually_pretty_print r)
+            | Some (r, c) -> "Some "^(actually_pretty_print r)^": "^c
             | _ -> "None")
         ^"\n -- linked rule: "^
         "#"^label
@@ -87,7 +87,7 @@ let makeGraphViz (thing : value) =
         | Some x -> x in
     let isDone x = let f = assoc_opt_id x (!names) in
         match f with Some _ -> true | None -> false in
-    let rec emit (parentRedex : value option) (parentContractum : value option) (x : value) : string =
+    let rec emit (parentRedex : (value*string) option) (parentContractum : value option) (x : value) : string =
         let emit' = emit None None in
         let redex = ref None in
         let drewContractum = ref false in
@@ -102,7 +102,7 @@ let makeGraphViz (thing : value) =
             let oi = assertSome (getoi x) in
             let myredex = match oi with | _, _, r, _ -> r in
             let mycontractum = match myredex with
-                | Some r ->
+                | Some (r, _) ->
                     if not (isMain r) then
                         (print_endline (name ^" -> " ^ name ^"[style=dotted penwidth=3];"); drewContractum := true; Some x)
                     else parentContractum
@@ -123,19 +123,20 @@ let makeGraphViz (thing : value) =
         | _ -> ());
         print_string (name^" [label=\""^label^"\" ");
         if x == thing then print_string " color=red ";
-        if !isContractum then print_string " fillcolor=lightblue style=filled ";
+        if !isContractum then print_string " fillcolor=lightblue style=bold penwidth=4 ";
         if !isConstructedInMain then print_string " fillcolor=\"#aaffaa\" style=filled ";
         print_endline "];";
         );
         (match !redex, parentRedex with
-            | Some r, _
-            | _, Some r ->
+            | Some (r, c), _
+            | _, Some (r, c) ->
                 if not (isMain r) then
-                    print_endline ((emit' x) ^ " -> " ^ (emit' r) ^ "[style=dotted];")
+                    print_endline ((emit' x) ^ " -> " ^ (emit' r) ^ "[style=dotted label=\""^c^"\"];")
             | Some _, Some _ -> failwith "2redex!?"
             | _ -> ());
     
-        if not !drewContractum then (* Q-MULTIPLE-CONTRACTUMS? *)
+        if not !drewContractum then 
+        (* Q-MULTIPLE-CONTRACTUMS? *)
         (match parentContractum with
             | Some c -> print_endline ((emit' x) ^ " -> " ^ (emit' c) ^ "[style=dotted penwidth=3];")
             | _ -> ());

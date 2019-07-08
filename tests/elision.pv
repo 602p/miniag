@@ -1,0 +1,72 @@
+declare nonterminal Expr
+declare synthesized attribute step :: Expr
+declare inherited attribute flag :: bool
+attach attribute step on Expr
+attach attribute flag on Expr
+
+declare production base
+top::Expr ::= i::int {
+	top.step = base(i) #"S";
+}
+
+declare production normal
+top::Expr ::= a::Expr {
+	top.step = normal(a.step) #"S";
+	a.flag = top.flag;
+}
+
+declare production select
+top::Expr ::= a::Expr b::Expr {
+	top.step = if top.flag then a.step else b.step #"Sel";
+	a.flag = top.flag;
+}
+
+declare production setflag
+top::Expr ::= f::bool a::Expr {
+	top.step = a.step #"Sf";
+	a.flag = f;
+}
+
+declare production swap1
+top::Expr ::= a::Expr {
+	top.step = swap2(a.step) #"Swa1";
+	a.flag = top.flag;
+}
+
+declare production swap2
+top::Expr ::= a::Expr {
+	top.step = swap1(a.step) #"Swa2";
+	a.flag = top.flag;
+}
+
+declare production expanded
+top::Expr ::= a::Expr {
+	top.step = a.step #"S";
+	a.flag = top.flag;
+}
+
+declare production expands
+top::Expr ::= a::Expr {
+	top.step = expanded(expanded(a.step)) #"Exd";
+	a.flag = top.flag;
+}
+
+declare production elide
+top::Expr ::= a::Expr {
+	top.step = a.step #"Eli";
+	a.flag = top.flag;
+}
+
+
+
+declare nonterminal Main_nt
+declare synthesized attribute start :: Expr
+declare synthesized attribute exitcode :: Expr
+attach attribute start on Main_nt
+attach attribute exitcode on Main_nt
+
+declare production Main
+top::Main_nt ::= {
+	top.start = normal(setflag(true, normal(select(base(1), base(2))))) #"C";
+	top.exitcode = top.start.step #"D";
+}

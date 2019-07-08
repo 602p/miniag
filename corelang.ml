@@ -107,7 +107,7 @@ and evalctx = (value * attrrule option * bool) option
 [@@ deriving show { with_path = false }]
 
 and origininfo =
-    value option * bool * value option * string
+    value option * bool * (value * string) option * string
 (* [@printer fun fmt _ -> fprintf fmt "<OI>"] *)
 [@@ deriving show { with_path = false }]
 
@@ -172,6 +172,10 @@ let shuckValueOpt = function
     | Some x -> Some (shuckValue x)
     | None -> None
 
+let setRedexComment r = function
+    | Some x -> Some (x, r)
+    | None -> None
+
 let getLabel = function
     | Some (_, Some (_, _, _, l), _) -> l
     | _ -> ""
@@ -193,6 +197,8 @@ let getTree = function (v, _, _) -> v
 let getTreeOpt = function
     | Some (v, _, _) -> Some v
     | None -> None
+
+let getRedexFromCtx ctx = (setRedexComment (getLabel ctx) (shuckValueOpt (getTreeOpt ctx)))
 
 let getEval lang =
     match lang with Language (_, _, _, _, rules) ->
@@ -265,7 +271,7 @@ let getEval lang =
             let er = getEr ctx in
             print_endline (([%show:expr] expr)^": "^(string_of_bool sameProd)^" "^(string_of_bool childrenOk)^" "^(string_of_bool er));
             let isContractum = not (sameProd && childrenOk && er) in
-            let redex = if (not (sameProd && childrenOk)) && (getEr ctx) then (shuckValueOpt (getTreeOpt ctx)) else None in
+            let redex = if (not (sameProd && childrenOk)) && (getEr ctx) then getRedexFromCtx ctx else None in
             BareNonterminalV (prod, args, (extractOrigin ctx, isContractum, redex, getLabel ctx)))
 
         | GetAttr (nt, attr) ->
@@ -273,23 +279,15 @@ let getEval lang =
                 | DecoratedNonterminalV _ as v -> v
                 | BareNonterminalV _ as v -> doAutoDec ctx env v
                 | _ -> failwith "bad actual type to GetAttr") in
-            let redex = if getEr ctx then (shuckValueOpt (getTreeOpt ctx)) else None in
+            let redex = if getEr ctx then getRedexFromCtx ctx else None in
             copy redex (resolveAttr v ctx attr)
 
         | Decorate (e, b) ->
             makeDecNT ctx (evalExpr'_compound env e) env (List.map (fun x -> fst x, (snd x, None)) b)
 
         | New x ->
-            let redex = if getEr ctx then (shuckValueOpt (getTreeOpt ctx)) else None in
-            let arg = (evalExpr'_compound env x) in
-            print_endline "\n\nNEW\n\nCTX=";
-            print_endline ([%show: value option] redex);
-            print_endline "\n\nARG=";
-            print_endline ([%show: value] arg);
-            let r = duplicate redex (getLabel ctx) arg in
-            print_endline ("\n\nPOSTNEW\n\n"^([%show:value] r));
-            print_endline ("\nHASH="^(string_of_int (Hashtbl.hash r)));
-            r
+            let redex = if getEr ctx then getRedexFromCtx ctx else None in
+            duplicate redex (getLabel ctx) (evalExpr'_compound env x)
         ) in 
             (* print_endline ">>"; *)
             r
@@ -346,7 +344,7 @@ let getEval lang =
                     (Some h, false, redex, rule))
             | x -> x
 
-    and copy (redex : value option) (tree : value) : value = 
+    and copy redex (tree : value) : value = 
         match tree with
             | BareNonterminalV (p, v, (o, n, r, l))
             | DecoratedNonterminalV (p, v, _, BareNonterminalV(_, _, (o, n, r, l))) ->
