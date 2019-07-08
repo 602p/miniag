@@ -67,6 +67,7 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.start = normal(setflag(true, normal(setflag(false, normal(select(base(1), base(2))))))) #"C";
+	-- top.start = normal(setflag(true, normal(setflag(false, normal(select(base(1), base(2))))))) #"C";
+	top.start = normal(expands(normal(base(1)))) #"C";
 	top.exitcode = top.start.step #"D";
 }

@@ -199,6 +199,7 @@ let getTreeOpt = function
     | None -> None
 
 let getRedexFromCtx ctx = (setRedexComment (getLabel ctx) (shuckValueOpt (getTreeOpt ctx)))
+(* This is the implementation of the redex edge labels *)
 
 let getEval lang =
     match lang with Language (_, _, _, _, rules) ->

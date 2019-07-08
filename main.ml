@@ -1,6 +1,6 @@
 open Corelang
 open Lowlang
-open Oi
+open Oi2
 
 let parse_file filename =
   let in_channel = open_in filename in

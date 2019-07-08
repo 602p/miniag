@@ -23,7 +23,7 @@ let is_primitive = function
     | UnitV -> true
     | _ -> false
 
-let heuristic_pp = function
+let nodebody_pp = function
     | BareNonterminalV (Production (p, _, _, _), values, _) ->
         if values = [] then
             p
@@ -87,13 +87,13 @@ let makeGraphViz (thing : value) =
         | Some x -> x in
     let isDone x = let f = assoc_opt_id x (!names) in
         match f with Some _ -> true | None -> false in
-    let rec emit (parentRedex : (value*string) option) (parentContractum : value option) (x : value) : string =
-        let emit' = emit None None in
+    let rec emit (isResult : bool) (parentRedex : (value*string) option) (parentContractum : value option) (x : value) : string =
+        let emit' = emit false None None in
         let redex = ref None in
         let drewContractum = ref false in
         (if isDone x then () else
         let name = makeOrGet x in
-        let label = heuristic_pp x in
+        let label = nodebody_pp x in
         let isContractum = ref false in
         let isConstructedInMain = ref false in
         (match x with
@@ -111,19 +111,20 @@ let makeGraphViz (thing : value) =
                 | None -> parentRedex
                 | x -> x in
             (if listAll is_primitive children then () else 
-            List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit myredex mycontractum ch)^" [taillabel=\""^(fst binding)^"\"];")) childnames children);
+            List.iter2 (fun binding ch -> print_endline (name^" -> "^(emit isResult myredex mycontractum ch)^" [arrowhead=none taillabel=\""^(fst binding)^"\"];")) childnames children);
             (match oi with
                 | Some x, isContractum', redex', r -> 
                     (if isMain x then isConstructedInMain := true else 
-                    (print_endline ((name)^" -> "^(emit' x)^" [style=dashed label=\""^r^"\"");
+                    (print_string ((name)^" -> "^(emit' x)^" [style=dashed label=\""^r^"\"");
                     isContractum := isContractum';
                     redex := redex';
                     print_endline "];"))
                 | _ -> ())
         | _ -> ());
         print_string (name^" [label=\""^label^"\" ");
-        if x == thing then print_string " color=red ";
-        if !isContractum then print_string " fillcolor=lightblue style=bold penwidth=4 ";
+        if x == thing then print_string " color=blue ";
+        if isResult then print_string " fillcolor=\"#ccccff\" style=filled ";
+        if !isContractum then print_string " shape=diamond  ";
         if !isConstructedInMain then print_string " fillcolor=\"#aaffaa\" style=filled ";
         print_endline "];";
         );
@@ -158,8 +159,8 @@ let makeGraphViz (thing : value) =
             | _ -> ()); *)
         makeOrGet x
     in
-    print_endline "digraph {";
-    ignore (emit None None thing);
+    print_endline "digraph {\nnode [fontname = \"monospace\"];\n";
+    ignore (emit true None None thing);
     print_endline "}";
     close_out oc;
-    ignore (Sys.command "dot -Tpng out/oi.dot -o out/oi.png")
+    ignore (Sys.command "bash draw.sh")

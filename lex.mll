@@ -122,6 +122,9 @@ rule scan = parse
   | [' ' '\t' '\r'] +
     { scan lexbuf }
 
+  | "--" [^'\n']* '\n'
+    { scan lexbuf }
+
   | '"'
     { let str, _ = scan_string "" lexbuf in STRING (str) }
 
