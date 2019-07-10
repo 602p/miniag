@@ -18,7 +18,7 @@ top::Nat ::= n::Nat {
 	top.asInt = n.asInt + 1;
 	top.plusOne = S(n.plusOne)
 		#"I";
-	top.minusOne = if n.asInt == 0 then Z() else S(n.minusOne) #"M";
+	top.minusOne = new n #"M";
 }
 
 declare nonterminal Main_nt
@@ -27,5 +27,5 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
-	top.exitcode = S(S(S(Z()))).plusOne.plusOne #"Entry";
+	top.exitcode = S(S(S(Z()))).minusOne #"Entry";
 }

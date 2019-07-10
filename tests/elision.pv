@@ -27,15 +27,15 @@ top::Expr ::= f::bool a::Expr {
 	a.flag = f;
 }
 
-declare production swap1
+declare production toggle1
 top::Expr ::= a::Expr {
-	top.step = swap2(a.step) #"Swa1";
+	top.step = toggle2(a.step) #"Tog1";
 	a.flag = top.flag;
 }
 
-declare production swap2
+declare production toggle2
 top::Expr ::= a::Expr {
-	top.step = swap1(a.step) #"Swa2";
+	top.step = toggle1(a.step) #"Tog2";
 	a.flag = top.flag;
 }
 
@@ -57,6 +57,26 @@ top::Expr ::= a::Expr {
 	a.flag = top.flag;
 }
 
+declare production swap
+top::Expr ::= a::Expr b::Expr {
+	top.step = swap(b.step, a.step) #"Swp";
+	a.flag = top.flag;
+	b.flag = top.flag;
+}
+
+declare production two
+top::Expr ::= a::Expr b::Expr {
+	top.step = two(a.step, b.step) #"Two";
+	a.flag = top.flag;
+	b.flag = top.flag;
+}
+
+declare production dup
+top::Expr ::= a::Expr {
+	top.step = two(a.step, a.step) #"Dup";
+	a.flag = top.flag;
+}
+
 
 
 declare nonterminal Main_nt
@@ -67,9 +87,13 @@ attach attribute exitcode on Main_nt
 
 declare production Main
 top::Main_nt ::= {
+	top.exitcode = top.start.step #"D";
+	-- top.start = normal(setflag(true, normal(select(base(1), base(2))))) #"C";
 	-- top.start = normal(setflag(true, normal(setflag(false, normal(select(base(1), base(2))))))) #"C";
 	-- top.start = normal(expands(normal(base(1)))) #"C";
-	top.start = normal(normal(elide(normal(normal(base(1)))))) #"C";
-	-- top.start = normal(swap1(base(1)));
-	top.exitcode = top.start.step #"D";
+	-- top.start = normal(elide(normal(base(1)))) #"C";
+	-- top.start = normal(toggle1(base(1))) #"C";
+	-- top.start = normal(swap(base(1), base(2))) #"C";
+	-- top.start = normal(elide(normal(elide(normal(base(1)))))) #"C";
+	top.start = normal(dup(normal(base(1)))) #"C";
 }

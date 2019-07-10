@@ -50,9 +50,9 @@ top::Stmt ::= name::string value::Expr {
 
 declare production Seq
 top::Stmt ::= fst::Stmt snd::Stmt {
-	fst.envDown = top.envDown;
-	snd.envDown = fst.envUp;
-	top.envUp = snd.envUp;
+	fst.envDown = top.envDown #"S1";
+	snd.envDown = fst.envUp #"S2";
+	top.envUp = snd.envUp #"S3";
 }
 
 declare nonterminal Main_nt

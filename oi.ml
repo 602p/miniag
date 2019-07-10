@@ -136,7 +136,7 @@ let makeGraphViz (thing : value) =
             | Some _, Some _ -> failwith "2redex!?"
             | _ -> ());
     
-        if not !drewContractum then 
+        (* if not !drewContractum then  *)
         (* Q-MULTIPLE-CONTRACTUMS? *)
         (match parentContractum with
             | Some c -> print_endline ((emit' x) ^ " -> " ^ (emit' c) ^ "[style=dotted penwidth=3];")

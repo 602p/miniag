@@ -76,6 +76,8 @@ let getRedexAttrOpt = function
     | Some (BareNonterminalV (_, _, (_, _, r, _))) -> r
     | _ -> None
 
+(* let isMain _ = false *)
+
 let makeGraphViz (root : value) =
     let oc = open_out "out/oi.dot" in
     let emit_endline x = output_string oc (x^"\n") in
@@ -126,7 +128,7 @@ let makeGraphViz (root : value) =
                     emitObjectWithoutLinks isAnswer ch;
                     append seenObjects ch;
                     emit_endline (name^" -> "^(makeOrGet ch)
-                        ^" [arrowhead=none taillabel=\""^(fst binding)^"\"];")) childnames children
+                        ^" [arrowhead=none label=\""^(fst binding)^"\"];")) childnames children
             | _ -> ());
             emit_endline "}")) in
 
@@ -134,7 +136,7 @@ let makeGraphViz (root : value) =
     emit_endline "node [fontname = \"monospace\"];";
     emit_endline "graph [compound=true";
     emit_endline "rankdir=TB";
-    emit_endline "];";
+    emit_endline "splines=spline];";
     emit_endline "subgraph { ";
     emit_endline "subgraph clusterROOT{";
     emitObjectWithoutLinks true root;
